@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบร้านยาจำลอง — หน้าหลัก</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #181818;
+      --card-hover: #222222;
+      --border: #2a2a2a;
+      --text-main: #ffffff;
+      --text-sub: #b3b3b3;
+      --accent: #1ed760;
+      --warn: #ffa42b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans Thai', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 40px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      padding: 8px 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: rgba(30, 215, 96, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(30, 215, 96, 0.35);
+      border-radius: 9999px;
+      padding: 4px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text-main);
+    }
+
+    .subtitle {
+      color: var(--text-sub);
+      font-size: 16px;
+      margin-top: 4px;
+    }
+
+    .notice {
+      background-color: rgba(255, 164, 43, 0.12);
+      border: 1px solid rgba(255, 164, 43, 0.45);
+      color: var(--warn);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+      min-height: 80px; /* สูงอย่างน้อย 72px กดง่ายบนมือถือและแท็บเล็ต */
+      padding: 16px 20px;
+      background-color: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-decoration: none;
+      color: var(--text-main);
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .nav-btn:hover,
+    .nav-btn:focus-visible {
+      background-color: var(--card-hover);
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .nav-btn:active {
+      transform: scale(0.99);
+    }
+
+    .nav-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .nav-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .nav-desc {
+      font-size: 16px;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @media (max-width: 520px) {
+      .nav-desc {
+        white-space: normal;
+      }
+    }
+
+    .nav-arrow {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 9999px;
+      background-color: rgba(30, 215, 96, 0.14);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    footer {
+      margin-top: 8px;
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <span class="badge">ระบบปฏิบัติการร้านยาจำลอง</span>
+      <h1>เมนูหลักเจ้าหน้าที่ร้านยา</h1>
+      <p class="subtitle">เลือกเมนูที่ต้องการใช้งานบนมือถือหรือแท็บเล็ต</p>
+    </header>
+
+    <div class="notice" role="note">
+      ข้อมูลทั้งหมดเป็นข้อมูลจำลอง ห้ามใส่ชื่อผู้ป่วยจริง
+    </div>
+
+    <nav class="nav-list" id="navList" aria-label="เมนูหลัก"></nav>
+
+    <footer>
+      ข้อมูลทั้งหมดเป็นข้อมูลจำลอง ห้ามใส่ชื่อผู้ป่วยจริง
+    </footer>
+  </main>
+
+  <script>
+    // รายการลิงก์เมนูหลัก (เพิ่มหรือลบเมนูได้ด้วยการแก้ไขเพียงบรรทัดเดียว)
+    const MENU_LINKS = [
+      { href: 'pos.html', title: 'หน้าขายยา', desc: 'เลือกยา กรอกจำนวน บันทึกการจ่ายยา' },
+      { href: 'admin.html', title: 'จัดการระบบ (ผู้ดูแล)', desc: 'บัญชียา คลังรายล็อต รายการจ่าย ต้องใช้รหัสผู้ดูแล' },
+      { href: 'dashboard.html', title: 'Dashboard คลังยา', desc: 'ภาพรวมคลัง ล็อตใกล้หมดอายุ ยาต่ำกว่าจุดสั่งซื้อ' },
+      { href: 'status.html', title: 'ตรวจสถานะระบบ', desc: 'ตรวจว่าการเชื่อมต่อแต่ละส่วนทำงานปกติ' },
+    ];
+
+    // สร้างปุ่มลิงก์ด้วย DOM API และ textContent เท่านั้น (ไม่ใช้ innerHTML)
+    function renderMenu() {
+      const navList = document.getElementById('navList');
+
+      MENU_LINKS.forEach((item) => {
+        const anchor = document.createElement('a');
+        anchor.className = 'nav-btn';
+        anchor.href = item.href;
+
+        const textWrap = document.createElement('div');
+        textWrap.className = 'nav-text';
+
+        const titleEl = document.createElement('span');
+        titleEl.className = 'nav-title';
+        titleEl.textContent = item.title;
+
+        const descEl = document.createElement('span');
+        descEl.className = 'nav-desc';
+        descEl.textContent = item.desc;
+
+        const arrowEl = document.createElement('span');
+        arrowEl.className = 'nav-arrow';
+        arrowEl.setAttribute('aria-hidden', 'true');
+        arrowEl.textContent = '→';
+
+        textWrap.appendChild(titleEl);
+        textWrap.appendChild(descEl);
+        anchor.appendChild(textWrap);
+        anchor.appendChild(arrowEl);
+        navList.appendChild(anchor);
+      });
+    }
+
+    renderMenu();
+  </script>
+</body>
+</html>
