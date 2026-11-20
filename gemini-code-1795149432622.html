@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pharmacy Drug Catalog — ทะเบียนรายการยาและรหัส ATC</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Fonts: Inter, Noto Sans Thai & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sp: {
+              green: '#1ed760',
+              greenBorder: '#1db954',
+              base: '#121212',
+              dark: '#181818',
+              mid: '#1f1f1f',
+              card: '#252525',
+              cardAlt: '#272727',
+              text: '#ffffff',
+              secondary: '#b3b3b3',
+              nearWhite: '#cbcbcb',
+              light: '#fdfdfd',
+              negative: '#f3727f',
+              warning: '#ffa42b',
+              announcement: '#539df5',
+              borderGray: '#4d4d4d',
+              borderLight: '#7c7c7c',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', '"Noto Sans Thai"', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          boxShadow: {
+            'sp-card': '0px 8px 8px rgba(0, 0, 0, 0.3)',
+            'sp-dialog': '0px 8px 24px rgba(0, 0, 0, 0.5)',
+            'sp-inset': 'rgb(18, 18, 18) 0px 1px 0px, rgb(124, 124, 124) 0px 0px 0px 1px inset',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --brand-green: #1ed760;
+      --brand-green-border: #1db954;
+      --bg-base: #121212;
+      --surface-dark: #181818;
+      --surface-mid: #1f1f1f;
+      --surface-card: #252525;
+      --surface-card-alt: #272727;
+      --text-base: #ffffff;
+      --text-secondary: #b3b3b3;
+      --text-negative: #f3727f;
+      --text-warning: #ffa42b;
+      --text-announcement: #539df5;
+      --border-gray: #4d4d4d;
+      --border-light: #7c7c7c;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-base);
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+      color-scheme: dark;
+    }
+
+    .sp-input {
+      background-color: var(--surface-mid);
+      color: var(--text-base);
+      box-shadow: rgb(18, 18, 18) 0px 1px 0px, rgb(124, 124, 124) 0px 0px 0px 1px inset;
+      transition: all 0.15s ease;
+    }
+    .sp-input:focus {
+      outline: none;
+      box-shadow: rgb(18, 18, 18) 0px 1px 0px, #ffffff 0px 0px 0px 1.5px inset;
+    }
+
+    .sp-btn-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    .sp-surface-card {
+      background-color: var(--surface-dark);
+      border-radius: 8px;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sp-surface-card:hover {
+      background-color: var(--surface-card);
+      box-shadow: 0px 8px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #121212;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4d4d4d;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7c7c7c;
+    }
+
+    @keyframes panelReveal {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-reveal {
+      animation: panelReveal 0.22s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row antialiased selection:bg-sp-green selection:text-black">
+
+  <!-- Toast Banner -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-md">
+    <div class="flex items-start gap-3 rounded-lg bg-sp-card px-4 py-3.5 shadow-sp-dialog border border-sp-borderGray">
+      <span id="toastDot" class="w-2.5 h-2.5 rounded-full bg-sp-green mt-1.5 shrink-0"></span>
+      <div class="flex-1 text-sm">
+        <p id="toastTitle" class="font-bold text-white"></p>
+        <p id="toastMessage" class="text-xs text-sp-secondary mt-0.5"></p>
+      </div>
+      <button type="button" onclick="hideToast()" class="text-sp-secondary hover:text-white text-xs font-bold px-1 cursor-pointer">✕</button>
+    </div>
+  </div>
+
+  <!-- Left Navigation Sidebar -->
+  <aside class="w-full lg:w-64 bg-sp-base lg:min-h-screen lg:sticky lg:top-0 flex flex-col justify-between p-4 border-b lg:border-b-0 lg:border-r border-[#282828] shrink-0 z-30">
+    <div class="space-y-6">
+      <!-- Brand Header -->
+      <div class="flex items-center justify-between lg:justify-start gap-3 px-2 pt-1">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-sp-green text-black flex items-center justify-center font-bold shadow-md shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white tracking-tight">PharmaOps</div>
+            <div class="text-[11px] text-sp-secondary">Drug Master Catalog</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Primary Navigation Links (ชี้ไปยัง ./dashboard.html ตามข้อจำกัด) -->
+      <nav class="space-y-1" aria-label="Main Navigation">
+        <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-sp-secondary">เมนูหลักระบบร้านยา</div>
+
+        <a href="./drug_dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-bold text-white bg-sp-mid transition">
+          <span class="w-2 h-2 rounded-full bg-sp-green shrink-0"></span>
+          <span>ทะเบียนรายการยา</span>
+        </a>
+
+        <a href="./dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-normal text-sp-secondary hover:text-white hover:bg-sp-mid transition">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>คลัง หมดอายุ & จ่ายยา</span>
+        </a>
+      </nav>
+
+      <!-- Quick Category Summary in Sidebar -->
+      <div class="space-y-1">
+        <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-sp-secondary">สรุปทะเบียนยา</div>
+        <div class="px-3 py-2 rounded-lg bg-sp-dark text-xs space-y-1.5 border border-[#282828]">
+          <div class="flex justify-between">
+            <span class="text-sp-secondary">SKU ทั้งหมด</span>
+            <span id="sideSkuTotal" class="font-mono font-bold text-white">0</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-sp-secondary">หมวดหมู่</span>
+            <span id="sideCatTotal" class="font-mono font-bold text-sp-green">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Source Card -->
+    <div class="mt-6 rounded-lg bg-sp-dark p-3.5 space-y-2.5 border border-[#282828]">
+      <div class="flex items-center justify-between">
+        <span id="sidebarSourceTitle" class="text-xs font-bold text-white">สถานะการเชื่อมต่อข้อมูล</span>
+        <span id="asOfBadge" class="text-[10px] font-mono text-sp-secondary">as_of: -</span>
+      </div>
+      <div class="space-y-1.5 text-xs">
+        <div class="flex items-center justify-between">
+          <span id="labelDrugsSource" class="text-sp-secondary truncate">drugs (/api/data)</span>
+          <span id="statusDrugs" class="font-mono text-[11px] text-sp-warning">กำลังโหลด...</span>
+        </div>
+      </div>
+      <button type="button" onclick="loadDrugCatalogData()" class="w-full mt-1 rounded-full bg-sp-green hover:bg-[#1fdf64] text-black sp-btn-label py-2.5 px-4 transition cursor-pointer">
+        รีเฟรชข้อมูล (/api/data)
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Workspace -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="sticky top-0 z-20 bg-sp-base/95 backdrop-blur-md border-b border-[#282828] px-4 sm:px-6 py-4">
+      <div class="max-w-7xl mx-auto flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">ทะเบียนรายการยาและมาตรฐานรหัส ATC (Drug Master Catalog)</h1>
+            <!-- ป้ายมุมบนแสดงแหล่งข้อมูล -->
+            <span id="sourcePillTop" class="inline-flex items-center gap-1.5 rounded-full bg-sp-mid px-3 py-0.5 text-[11px] font-bold text-sp-nearWhite">
+              กำลังเชื่อมต่อ /api/data...
+            </span>
+          </div>
+          <p id="headerSubtitle" class="text-xs text-sp-secondary mt-1">
+            เชื่อมต่อบัญชีรายการยาจาก Supabase ผ่าน /api/data • ค้นหาตามชื่อสามัญ ความแรง หมวดหมู่ และเกณฑ์จุดสั่งซื้อ
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <button type="button" onclick="exportDrugsCsv()" class="rounded-full bg-sp-green hover:bg-[#1fdf64] text-black sp-btn-label px-5 py-2.5 transition cursor-pointer">
+            ส่งออกทะเบียนยา (CSV)
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+      <!-- แถบแจ้งเตือนสีเหลืองเมื่อใช้ข้อมูลสำรองจากไฟล์ JSON -->
+      <div id="fallbackWarningBanner" class="hidden rounded-lg bg-sp-warning/15 border border-sp-warning px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 text-xs sm:text-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-sp-warning shrink-0"></span>
+          <span class="font-bold text-sp-warning">ข้อมูลสำรองจากไฟล์ (ไม่ใช่ข้อมูลล่าสุด)</span>
+          <span id="fallbackReasonText" class="text-sp-nearWhite text-xs"></span>
+        </div>
+        <button type="button" onclick="loadDrugCatalogData()" class="rounded-full bg-sp-warning text-black text-xs font-bold px-3.5 py-1 hover:opacity-90 transition cursor-pointer">
+          ลองเชื่อมต่อ /api/data อีกครั้ง
+        </button>
+      </div>
+
+      <!-- Loading / Error State -->
+      <div id="loadingOrErrorBox" class="rounded-lg bg-sp-dark border border-[#282828] p-10 text-center max-w-2xl mx-auto my-8 shadow-sp-dialog">
+        <div id="stateIconBox" class="w-14 h-14 rounded-full bg-sp-mid text-sp-green flex items-center justify-center mx-auto mb-4">
+          <svg class="w-7 h-7 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </div>
+        <h2 id="stateTitle" class="text-lg font-bold text-white">กำลังโหลดข้อมูลทะเบียนรายการยา...</h2>
+        <p id="stateMessage" class="text-sm text-sp-secondary mt-2 leading-relaxed">
+          กำลังเรียก <span class="font-mono text-white">/api/data</span> (หมดเวลาอัตโนมัติใน 8 วินาที)
+        </p>
+        <div class="mt-6 flex flex-wrap justify-center gap-3">
+          <button type="button" onclick="loadDrugCatalogData()" class="rounded-full bg-sp-green hover:bg-[#1fdf64] text-black sp-btn-label px-7 py-2.5 transition cursor-pointer">
+            ลองใหม่อีกครั้ง
+          </button>
+          <a href="./dashboard.html" class="rounded-full border border-sp-borderLight hover:border-white text-white sp-btn-label px-6 py-2.5 transition">
+            ไปยังหน้าคลังยา (dashboard.html)
+          </a>
+        </div>
+      </div>
+
+      <!-- Dynamic Catalog Dashboard -->
+      <div id="catalogRoot" class="hidden space-y-6 animate-reveal">
+        <!-- KPI Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div class="sp-surface-card p-5">
+            <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">SKU ทั้งหมด</div>
+            <div id="kpiTotalSku" class="text-2xl sm:text-3xl font-bold text-white mt-2 font-mono">0</div>
+            <div id="kpiSourceSub" class="text-xs text-sp-green mt-2">ทะเบียนยาหลัก</div>
+          </div>
+
+          <div class="sp-surface-card p-5">
+            <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">หมวดหมู่ยา</div>
+            <div id="kpiTotalCat" class="text-2xl sm:text-3xl font-bold text-sp-green mt-2 font-mono">0</div>
+            <div class="text-xs text-sp-secondary mt-2">กลุ่มการรักษา (Therapeutic Categories)</div>
+          </div>
+
+          <div class="sp-surface-card p-5">
+            <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">รูปแบบยา (Dosage Forms)</div>
+            <div id="kpiTotalForm" class="text-2xl sm:text-3xl font-bold text-white mt-2 font-mono">0</div>
+            <div class="text-xs text-sp-secondary mt-2">เม็ด แคปซูล น้ำ ยาพ่น และอื่น ๆ</div>
+          </div>
+
+          <div class="sp-surface-card p-5">
+            <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">เกณฑ์ Reorder เฉลี่ย</div>
+            <div id="kpiAvgReorder" class="text-2xl sm:text-3xl font-bold text-sp-announcement mt-2 font-mono">0</div>
+            <div class="text-xs text-sp-secondary mt-2">หน่วยมาตรฐานต่อรายการยา</div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-7 sp-surface-card p-5">
+            <h2 class="text-base font-bold text-white mb-1">จำนวนรายการยาแยกตามหมวดหมู่ (Category Distribution)</h2>
+            <p class="text-xs text-sp-secondary mb-3">เรียงตามจำนวน SKU ในแต่ละกลุ่มยา</p>
+            <div class="h-72">
+              <canvas id="catBarChart"></canvas>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 sp-surface-card p-5">
+            <h2 class="text-base font-bold text-white mb-1">สัดส่วนรูปแบบยา (Dosage Form)</h2>
+            <p class="text-xs text-sp-secondary mb-3">จำแนกตามลักษณะเภสัชภัณฑ์</p>
+            <div class="h-72">
+              <canvas id="formDoughnutChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="sp-surface-card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <input type="text" id="drugSearchInput" placeholder="ค้นหา SKU, ชื่อสามัญ, รหัส ATC..." class="sp-input rounded-full px-4 py-2 text-xs w-64" />
+            <select id="drugCategorySelect" class="sp-input rounded-full px-3.5 py-2 text-xs font-semibold">
+              <option value="ALL">ทุกหมวดหมู่</option>
+            </select>
+            <select id="drugFormSelect" class="sp-input rounded-full px-3.5 py-2 text-xs font-semibold">
+              <option value="ALL">ทุกรูปแบบยา</option>
+            </select>
+          </div>
+          <div id="filteredCountText" class="text-xs font-mono text-sp-secondary">แสดง 0 รายการ</div>
+        </div>
+
+        <!-- Drug Catalog Table -->
+        <div class="rounded-lg bg-sp-dark overflow-hidden border border-[#282828]">
+          <div class="overflow-x-auto max-h-[560px]">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-sp-mid sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-sp-secondary border-b border-[#333]">
+                <tr>
+                  <th class="py-3 px-4">SKU</th>
+                  <th class="py-3 px-4">ชื่อสามัญ (Generic Name)</th>
+                  <th class="py-3 px-4">ความแรง</th>
+                  <th class="py-3 px-4">รูปแบบยา</th>
+                  <th class="py-3 px-4">หน่วย</th>
+                  <th class="py-3 px-4">หมวดหมู่</th>
+                  <th class="py-3 px-4">รหัส ATC</th>
+                  <th class="py-3 px-4 text-right">จุดสั่งซื้อ (Reorder)</th>
+                </tr>
+              </thead>
+              <tbody id="drugTableBody" class="divide-y divide-[#282828] text-xs"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[#282828] bg-sp-base px-4 sm:px-6 py-4 mt-8">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-sp-secondary">
+        <div>Pharmacy Drug Catalog • Spotify Dark UI Theme</div>
+        <div class="flex items-center gap-4">
+          <a href="./dashboard.html" class="hover:text-white underline">ไปยังหน้าคลังยาและประวัติจ่ายยา (dashboard.html)</a>
+          <span id="footerMeta" class="font-mono">กำลังเชื่อมต่อ /api/data</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. STATE MANAGEMENT (ไม่มีการฝังข้อมูลดิบหรือ key ใด ๆ ในไฟล์ HTML)
+    // =========================================================================
+    const state = {
+      drugs: [],
+      asOfDate: '2026-11-02',
+      dataSource: 'loading', // 'supabase' | 'fallback' | 'error'
+      search: '',
+      categoryFilter: 'ALL',
+      formFilter: 'ALL',
+    };
+
+    let catChart = null;
+    let formChart = null;
+
+    Chart.defaults.font.family = "'Inter', 'Noto Sans Thai', sans-serif";
+    Chart.defaults.color = '#b3b3b3';
+
+    // ฟังก์ชัน escape ข้อมูลทุกค่าก่อนแสดงผลผ่าน innerHTML เพื่อป้องกัน XSS
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function fmtNum(n) {
+      return Number(n || 0).toLocaleString('en-US');
+    }
+
+    // =========================================================================
+    // 2. TOAST NOTIFICATION
+    // =========================================================================
+    let toastTimeout = null;
+    function showToast(title, msg, tone = 'green') {
+      const banner = document.getElementById('toastBanner');
+      const dot = document.getElementById('toastDot');
+      const colors = {
+        green: 'bg-sp-green',
+        warning: 'bg-sp-warning',
+        negative: 'bg-sp-negative',
+        info: 'bg-sp-announcement',
+      };
+      dot.className = `w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${colors[tone] || colors.green}`;
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastMessage').textContent = msg;
+      banner.classList.remove('hidden');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(hideToast, 4500);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBanner').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 3. การดึงข้อมูลจาก /api/data (.drugs) และทางสำรองไฟล์ JSON
+    // =========================================================================
+    function applyDrugCatalog(drugsObj, asOf, sourceType, fallbackReason = '') {
+      state.drugs = drugsObj.items || [];
+      state.asOfDate = asOf || (drugsObj.meta && drugsObj.meta.as_of) || '2026-11-02';
+      state.dataSource = sourceType;
+
+      const elDrugs = document.getElementById('statusDrugs');
+      elDrugs.textContent = `✓ ${state.drugs.length} SKUs`;
+      elDrugs.className = 'font-mono text-[11px] text-sp-green font-bold';
+      document.getElementById('asOfBadge').textContent = `as_of: ${state.asOfDate}`;
+
+      const sourcePill = document.getElementById('sourcePillTop');
+      const fallbackBanner = document.getElementById('fallbackWarningBanner');
+      const headerSubtitle = document.getElementById('headerSubtitle');
+      const footerMeta = document.getElementById('footerMeta');
+
+      if (sourceType === 'supabase') {
+        sourcePill.className = 'inline-flex items-center gap-1.5 rounded-full bg-[#1db954]/20 border border-sp-greenBorder px-3 py-0.5 text-[11px] font-bold text-sp-green';
+        sourcePill.innerHTML = `<span class="w-2 h-2 rounded-full bg-sp-green"></span> ข้อมูลจาก Supabase • as_of ${escapeHtml(state.asOfDate)}`;
+        fallbackBanner.classList.add('hidden');
+
+        document.getElementById('sidebarSourceTitle').textContent = 'แหล่งข้อมูล: Supabase';
+        document.getElementById('labelDrugsSource').textContent = 'drugs (/api/data)';
+        document.getElementById('kpiSourceSub').textContent = 'ข้อมูลจาก Supabase (/api/data)';
+        headerSubtitle.textContent = `ข้อมูลทะเบียนยาจาก Supabase ผ่าน /api/data (as_of: ${state.asOfDate})`;
+        footerMeta.textContent = `Source: Supabase (/api/data) • as_of: ${state.asOfDate}`;
+      } else {
+        sourcePill.className = 'inline-flex items-center gap-1.5 rounded-full bg-sp-warning/20 border border-sp-warning px-3 py-0.5 text-[11px] font-bold text-sp-warning';
+        sourcePill.innerHTML = `<span class="w-2 h-2 rounded-full bg-sp-warning"></span> ข้อมูลสำรองจากไฟล์ JSON • as_of ${escapeHtml(state.asOfDate)}`;
+        fallbackBanner.classList.remove('hidden');
+        document.getElementById('fallbackReasonText').textContent = fallbackReason ? `(${fallbackReason})` : '';
+
+        document.getElementById('sidebarSourceTitle').textContent = 'แหล่งข้อมูลสำรอง (JSON)';
+        document.getElementById('labelDrugsSource').textContent = 'drugs_update.json';
+        document.getElementById('kpiSourceSub').textContent = 'ข้อมูลสำรองจากไฟล์ JSON';
+        headerSubtitle.textContent = `กำลังแสดงผลจากไฟล์สำรอง ./data/drugs_update.json (ไม่ใช่ข้อมูลล่าสุด)`;
+        footerMeta.textContent = `Source: Fallback JSON (./data/drugs_update.json)`;
+      }
+
+      // เติมตัวเลือกหมวดหมู่และรูปแบบยาใน Dropdown
+      const categories = [...new Set(state.drugs.map((d) => d.category).filter(Boolean))].sort();
+      const forms = [...new Set(state.drugs.map((d) => d.dosage_form).filter(Boolean))].sort();
+
+      const catSelect = document.getElementById('drugCategorySelect');
+      catSelect.innerHTML = `<option value="ALL">ทุกหมวดหมู่ (${categories.length})</option>` +
+        categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+      const formSelect = document.getElementById('drugFormSelect');
+      formSelect.innerHTML = `<option value="ALL">ทุกรูปแบบยา (${forms.length})</option>` +
+        forms.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+
+      // อัปเดตตัวเลข KPI หลัก
+      document.getElementById('kpiTotalSku').textContent = fmtNum(state.drugs.length);
+      document.getElementById('kpiTotalCat').textContent = fmtNum(categories.length);
+      document.getElementById('kpiTotalForm').textContent = fmtNum(forms.length);
+      document.getElementById('sideSkuTotal').textContent = fmtNum(state.drugs.length);
+      document.getElementById('sideCatTotal').textContent = fmtNum(categories.length);
+
+      const avgReorder = state.drugs.length
+        ? Math.round(state.drugs.reduce((s, d) => s + Number(d.reorder_level || 0), 0) / state.drugs.length)
+        : 0;
+      document.getElementById('kpiAvgReorder').textContent = fmtNum(avgReorder);
+
+      document.getElementById('loadingOrErrorBox').classList.add('hidden');
+      document.getElementById('catalogRoot').classList.remove('hidden');
+
+      renderCharts();
+      renderDrugTable();
+    }
+
+    // เรียก /api/data พร้อมกำหนดเวลาหมดอายุ 8 วินาที และใช้ .drugs
+    async function loadDrugCatalogData() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // หมดเวลา 8 วินาที
+
+      try {
+        const res = await fetch('/api/data', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.status !== 200) {
+          throw new Error(`HTTP ${res.status} จาก /api/data`);
+        }
+
+        const payload = await res.json();
+        if (!payload || !payload.drugs || !Array.isArray(payload.drugs.items) || payload.drugs.items.length === 0) {
+          throw new Error('ไม่พบข้อมูล drugs ใน /api/data');
+        }
+
+        // วันอ้างอิงใช้ stock.meta.as_of เป็นหลักตามกติกา
+        const asOf =
+          (payload.stock && payload.stock.meta && payload.stock.meta.as_of) ||
+          (payload.drugs.meta && payload.drugs.meta.as_of) ||
+          '2026-11-02';
+
+        applyDrugCatalog(payload.drugs, asOf, 'supabase');
+        showToast('เชื่อมต่อ Supabase สำเร็จ', `โหลดทะเบียนยา ${payload.drugs.items.length} รายการเรียบร้อยแล้ว`, 'green');
+      } catch (apiErr) {
+        clearTimeout(timeoutId);
+        const reason = apiErr.name === 'AbortError'
+          ? 'หมดเวลาเชื่อมต่อ /api/data เกิน 8 วินาที'
+          : (apiErr.message || 'ไม่สามารถเชื่อมต่อ /api/data');
+
+        // ทางสำรอง: โหลด ./data/drugs_update.json
+        await loadFallbackDrugsJson(reason);
+      }
+    }
+
+    async function loadFallbackDrugsJson(apiFailureReason) {
+      const candidates = ['./data/drugs_update.json', './drugs_update.json'];
+      for (const path of candidates) {
+        try {
+          const r = await fetch(path, { cache: 'no-store' });
+          if (r.ok) {
+            const json = await r.json();
+            if (json && Array.isArray(json.items) && json.items.length > 0) {
+              const asOf = (json.meta && json.meta.as_of) || '2026-11-02';
+              applyDrugCatalog(json, asOf, 'fallback', apiFailureReason);
+              showToast('ใช้ข้อมูลสำรองจากไฟล์ JSON', 'ข้อมูลสำรองจากไฟล์ (ไม่ใช่ข้อมูลล่าสุด)', 'warning');
+              return;
+            }
+          }
+        } catch (_) {
+          // ลอง path ถัดไป
+        }
+      }
+
+      state.dataSource = 'error';
+      document.getElementById('catalogRoot').classList.add('hidden');
+      document.getElementById('loadingOrErrorBox').classList.remove('hidden');
+
+      const sourcePill = document.getElementById('sourcePillTop');
+      sourcePill.className = 'inline-flex items-center gap-1.5 rounded-full bg-sp-negative/20 border border-sp-negative px-3 py-0.5 text-[11px] font-bold text-sp-negative';
+      sourcePill.textContent = 'ไม่สามารถโหลดข้อมูลได้';
+
+      document.getElementById('stateIconBox').className = 'w-14 h-14 rounded-full bg-sp-negative/20 text-sp-negative flex items-center justify-center mx-auto mb-4';
+      document.getElementById('stateIconBox').innerHTML = `
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
+      `;
+      document.getElementById('stateTitle').textContent = 'ไม่สามารถเชื่อมต่อ API หรือไฟล์ข้อมูลสำรองได้';
+      document.getElementById('stateMessage').textContent = 'ทดสอบผ่านลิงก์ Vercel เท่านั้น (Live Server ไม่รัน /api)';
+      document.getElementById('footerMeta').textContent = 'ทดสอบผ่านลิงก์ Vercel เท่านั้น (Live Server ไม่รัน /api)';
+    }
+
+    // =========================================================================
+    // 4. CHARTS & TABLE RENDERING
+    // =========================================================================
+    function renderCharts() {
+      if (catChart) catChart.destroy();
+      if (formChart) formChart.destroy();
+
+      const catCounts = {};
+      const formCounts = {};
+      state.drugs.forEach((d) => {
+        const c = d.category || 'ไม่ระบุหมวดหมู่';
+        const f = d.dosage_form || 'ไม่ระบุรูปแบบ';
+        catCounts[c] = (catCounts[c] || 0) + 1;
+        formCounts[f] = (formCounts[f] || 0) + 1;
+      });
+
+      const sortedCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+      catChart = new Chart(document.getElementById('catBarChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: sortedCats.map((x) => x[0]),
+          datasets: [{
+            label: 'จำนวน SKU',
+            data: sortedCats.map((x) => x[1]),
+            backgroundColor: '#1ed760',
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, grid: { color: '#2a2a2a' } },
+            y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          },
+        },
+      });
+
+      const sortedForms = Object.entries(formCounts).sort((a, b) => b[1] - a[1]);
+      formChart = new Chart(document.getElementById('formDoughnutChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: sortedForms.map((x) => x[0]),
+          datasets: [{
+            data: sortedForms.map((x) => x[1]),
+            backgroundColor: ['#1ed760', '#539df5', '#ffa42b', '#f3727f', '#a78bfa', '#34d399', '#fbbf24', '#9ca3af'],
+            borderWidth: 2,
+            borderColor: '#181818',
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } },
+          },
+        },
+      });
+    }
+
+    function getFilteredDrugs() {
+      const q = state.search.trim().toLowerCase();
+      return state.drugs.filter((d) => {
+        if (state.categoryFilter !== 'ALL' && d.category !== state.categoryFilter) return false;
+        if (state.formFilter !== 'ALL' && d.dosage_form !== state.formFilter) return false;
+        if (
+          q &&
+          !String(d.sku || '').toLowerCase().includes(q) &&
+          !String(d.generic_name || '').toLowerCase().includes(q) &&
+          !String(d.atc_code || '').toLowerCase().includes(q) &&
+          !String(d.category || '').toLowerCase().includes(q)
+        ) return false;
+        return true;
+      });
+    }
+
+    function renderDrugTable() {
+      const rows = getFilteredDrugs();
+      document.getElementById('filteredCountText').textContent = `แสดง ${rows.length} จาก ${state.drugs.length} รายการ`;
+
+      const tbody = document.getElementById('drugTableBody');
+      tbody.innerHTML = rows.map((d) => `
+        <tr class="hover:bg-sp-cardAlt transition-colors">
+          <td class="py-2.5 px-4 font-mono font-bold text-white">${escapeHtml(d.sku)}</td>
+          <td class="py-2.5 px-4 font-semibold text-white">${escapeHtml(d.generic_name)}</td>
+          <td class="py-2.5 px-4 font-mono text-sp-nearWhite">${escapeHtml(d.strength)}</td>
+          <td class="py-2.5 px-4 text-sp-secondary">${escapeHtml(d.dosage_form)}</td>
+          <td class="py-2.5 px-4 font-mono text-sp-secondary">${escapeHtml(d.unit)}</td>
+          <td class="py-2.5 px-4">
+            <span class="rounded-[2px] bg-sp-mid px-2 py-0.5 text-[11px] text-sp-nearWhite">${escapeHtml(d.category)}</span>
+          </td>
+          <td class="py-2.5 px-4 font-mono text-sp-announcement font-bold">${escapeHtml(d.atc_code)}</td>
+          <td class="py-2.5 px-4 text-right font-mono font-bold text-sp-green">${fmtNum(d.reorder_level)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportDrugsCsv() {
+      const rows = getFilteredDrugs();
+      if (!rows.length) {
+        showToast('ไม่มีข้อมูลสำหรับส่งออก', 'ไม่พบรายการยาตามเงื่อนไขที่เลือก', 'info');
+        return;
+      }
+      const headers = ['SKU', 'Generic_Name', 'Strength', 'Dosage_Form', 'Unit', 'Category', 'ATC_Code', 'Reorder_Level'];
+      const lines = [headers.join(',')];
+      rows.forEach((d) => {
+        lines.push([
+          d.sku,
+          `"${String(d.generic_name || '').replace(/"/g, '""')}"`,
+          `"${String(d.strength || '').replace(/"/g, '""')}"`,
+          `"${String(d.dosage_form || '').replace(/"/g, '""')}"`,
+          d.unit,
+          `"${String(d.category || '').replace(/"/g, '""')}"`,
+          d.atc_code,
+          d.reorder_level,
+        ].join(','));
+      });
+
+      const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `drug-catalog_${state.asOfDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('ส่งออกทะเบียนยาสำเร็จ', `บันทึกไฟล์ CSV จำนวน ${rows.length} รายการเรียบร้อยแล้ว`, 'green');
+    }
+
+    document.getElementById('drugSearchInput').addEventListener('input', (e) => {
+      state.search = e.target.value;
+      renderDrugTable();
+    });
+    document.getElementById('drugCategorySelect').addEventListener('change', (e) => {
+      state.categoryFilter = e.target.value;
+      renderDrugTable();
+    });
+    document.getElementById('drugFormSelect').addEventListener('change', (e) => {
+      state.formFilter = e.target.value;
+      renderDrugTable();
+    });
+
+    // เริ่มต้นดึงข้อมูลจาก /api/data ทันทีที่เปิดหน้าเว็บ
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDrugCatalogData();
+    });
+  </script>
+</body>
+</html>

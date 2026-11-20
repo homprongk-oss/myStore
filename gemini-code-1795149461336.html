@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pharmacy Operations Command — Stock, Expiry, Reorder & Dispense</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Fonts: Inter, Noto Sans Thai & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sp: {
+              green: '#1ed760',
+              greenBorder: '#1db954',
+              base: '#121212',
+              dark: '#181818',
+              mid: '#1f1f1f',
+              card: '#252525',
+              cardAlt: '#272727',
+              text: '#ffffff',
+              secondary: '#b3b3b3',
+              nearWhite: '#cbcbcb',
+              light: '#fdfdfd',
+              negative: '#f3727f',
+              warning: '#ffa42b',
+              announcement: '#539df5',
+              borderGray: '#4d4d4d',
+              borderLight: '#7c7c7c',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', '"Noto Sans Thai"', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          boxShadow: {
+            'sp-card': '0px 8px 8px rgba(0, 0, 0, 0.3)',
+            'sp-dialog': '0px 8px 24px rgba(0, 0, 0, 0.5)',
+            'sp-inset': 'rgb(18, 18, 18) 0px 1px 0px, rgb(124, 124, 124) 0px 0px 0px 1px inset',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --brand-green: #1ed760;
+      --brand-green-border: #1db954;
+      --bg-base: #121212;
+      --surface-dark: #181818;
+      --surface-mid: #1f1f1f;
+      --surface-card: #252525;
+      --surface-card-alt: #272727;
+      --text-base: #ffffff;
+      --text-secondary: #b3b3b3;
+      --text-negative: #f3727f;
+      --text-warning: #ffa42b;
+      --text-announcement: #539df5;
+      --border-gray: #4d4d4d;
+      --border-light: #7c7c7c;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-base);
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+      color-scheme: dark;
+    }
+
+    .sp-input {
+      background-color: var(--surface-mid);
+      color: var(--text-base);
+      box-shadow: rgb(18, 18, 18) 0px 1px 0px, rgb(124, 124, 124) 0px 0px 0px 1px inset;
+      transition: all 0.15s ease;
+    }
+    .sp-input:focus {
+      outline: none;
+      box-shadow: rgb(18, 18, 18) 0px 1px 0px, #ffffff 0px 0px 0px 1.5px inset;
+    }
+
+    .sp-btn-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    .sp-surface-card {
+      background-color: var(--surface-dark);
+      border-radius: 8px;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sp-surface-card:hover {
+      background-color: var(--surface-card);
+      box-shadow: 0px 8px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #121212;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4d4d4d;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7c7c7c;
+    }
+
+    @keyframes panelReveal {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-reveal {
+      animation: panelReveal 0.22s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row antialiased selection:bg-sp-green selection:text-black">
+
+  <!-- Toast Banner -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-md">
+    <div class="flex items-start gap-3 rounded-lg bg-sp-card px-4 py-3.5 shadow-sp-dialog border border-sp-borderGray">
+      <span id="toastDot" class="w-2.5 h-2.5 rounded-full bg-sp-green mt-1.5 shrink-0"></span>
+      <div class="flex-1 text-sm">
+        <p id="toastTitle" class="font-bold text-white"></p>
+        <p id="toastMessage" class="text-xs text-sp-secondary mt-0.5"></p>
+      </div>
+      <button type="button" onclick="hideToast()" class="text-sp-secondary hover:text-white text-xs font-bold px-1 cursor-pointer">✕</button>
+    </div>
+  </div>
+
+  <!-- Left Navigation Sidebar -->
+  <aside class="w-full lg:w-64 bg-sp-base lg:min-h-screen lg:sticky lg:top-0 flex flex-col justify-between p-4 border-b lg:border-b-0 lg:border-r border-[#282828] shrink-0 z-30">
+    <div class="space-y-6">
+      <!-- Brand Header -->
+      <div class="flex items-center justify-between lg:justify-start gap-3 px-2 pt-1">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-sp-green text-black flex items-center justify-center font-bold shadow-md shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white tracking-tight">PharmaOps</div>
+            <div class="text-[11px] text-sp-secondary">Inventory & Dispense</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Primary Navigation Links (แก้ลิงก์ทุกจุดที่เคยชี้ ./index.html ให้ชี้ ./dashboard.html) -->
+      <nav class="space-y-1" aria-label="Main Navigation">
+        <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-sp-secondary">เมนูหลักระบบร้านยา</div>
+
+        <a href="./drug_dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-normal text-sp-secondary hover:text-white hover:bg-sp-mid transition">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          <span>ทะเบียนรายการยา</span>
+        </a>
+
+        <a href="./dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-bold text-white bg-sp-mid transition">
+          <span class="w-2 h-2 rounded-full bg-sp-green shrink-0"></span>
+          <span>คลัง หมดอายุ & จ่ายยา</span>
+        </a>
+      </nav>
+
+      <!-- Sub-Views Navigation -->
+      <div class="space-y-1">
+        <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-sp-secondary">มุมมองวิเคราะห์</div>
+        <button type="button" data-tab="overview" onclick="switchTab('overview')" class="nav-sub-btn w-full flex items-center justify-between px-3 py-2 rounded-full text-sm font-bold text-white bg-sp-dark transition cursor-pointer">
+          <span>1. ภาพรวม & แจ้งเตือน</span>
+          <span id="badgeAlertCount" class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-sp-mid text-sp-negative">0</span>
+        </button>
+        <button type="button" data-tab="stock" onclick="switchTab('stock')" class="nav-sub-btn w-full flex items-center justify-between px-3 py-2 rounded-full text-sm font-normal text-sp-secondary hover:text-white transition cursor-pointer">
+          <span>2. คลังยา & วันหมดอายุ</span>
+          <span id="badgeLotCount" class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-sp-mid text-sp-secondary">0</span>
+        </button>
+        <button type="button" data-tab="reorder" onclick="switchTab('reorder')" class="nav-sub-btn w-full flex items-center justify-between px-3 py-2 rounded-full text-sm font-normal text-sp-secondary hover:text-white transition cursor-pointer">
+          <span>3. วางแผนการสั่งซื้อ</span>
+          <span id="badgeReorderCount" class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-sp-mid text-sp-warning">0</span>
+        </button>
+        <button type="button" data-tab="dispense" onclick="switchTab('dispense')" class="nav-sub-btn w-full flex items-center justify-between px-3 py-2 rounded-full text-sm font-normal text-sp-secondary hover:text-white transition cursor-pointer">
+          <span>4. ประวัติจ่ายยา & Audit</span>
+          <span id="badgeDispenseCount" class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-sp-mid text-sp-secondary">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Data Connection Status Card -->
+    <div class="mt-6 rounded-lg bg-sp-dark p-3.5 space-y-2.5 border border-[#282828]">
+      <div class="flex items-center justify-between">
+        <span id="sidebarSourceTitle" class="text-xs font-bold text-white">สถานะการเชื่อมต่อข้อมูล</span>
+        <span id="asOfBadge" class="text-[10px] font-mono text-sp-secondary">as_of: -</span>
+      </div>
+      <div class="space-y-1.5 text-xs">
+        <div class="flex items-center justify-between">
+          <span id="labelDrugsSource" class="text-sp-secondary truncate">drugs (ทะเบียนยา)</span>
+          <span id="statusDrugs" class="font-mono text-[11px] text-sp-warning">กำลังโหลด...</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span id="labelStockSource" class="text-sp-secondary truncate">stock (ล็อตคงคลัง)</span>
+          <span id="statusStock" class="font-mono text-[11px] text-sp-warning">กำลังโหลด...</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span id="labelDispenseSource" class="text-sp-secondary truncate">dispense_log (การจ่าย)</span>
+          <span id="statusDispense" class="font-mono text-[11px] text-sp-warning">กำลังโหลด...</span>
+        </div>
+      </div>
+      <button type="button" onclick="loadDashboardData()" class="w-full mt-1 rounded-full bg-sp-green hover:bg-[#1fdf64] text-black sp-btn-label py-2.5 px-4 transition cursor-pointer">
+        รีเฟรชข้อมูล (/api/data)
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Workspace -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Control Bar: Title + Source Indicator + Global Time-Range Filter -->
+    <header class="sticky top-0 z-20 bg-sp-base/95 backdrop-blur-md border-b border-[#282828] px-4 sm:px-6 py-4">
+      <div class="max-w-7xl mx-auto flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">ศูนย์ควบคุมคลังยา วันหมดอายุ การสั่งซื้อ และประวัติจ่ายยา</h1>
+            <!-- ป้ายมุมบนแสดงแหล่งข้อมูล (Supabase สีเขียว / JSON สำรอง สีเหลือง) -->
+            <span id="sourcePillTop" class="inline-flex items-center gap-1.5 rounded-full bg-sp-mid px-3 py-0.5 text-[11px] font-bold text-sp-nearWhite">
+              กำลังเชื่อมต่อ /api/data...
+            </span>
+          </div>
+          <p id="headerSubtitle" class="text-xs text-sp-secondary mt-1">
+            เชื่อมต่อฐานข้อมูล Supabase ผ่าน /api/data • ตรวจสอบความเคลื่อนไหวตามช่วงเวลาที่กำหนด
+          </p>
+        </div>
+
+        <!-- Global Time-Range Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Quick Time Presets -->
+          <div class="inline-flex items-center rounded-full bg-sp-dark p-1 border border-[#282828]">
+            <button type="button" data-preset="ALL" onclick="applyDatePreset('ALL')" class="preset-btn rounded-full px-3 py-1 text-xs font-bold bg-sp-mid text-white transition cursor-pointer">ทั้งหมด</button>
+            <button type="button" data-preset="7D" onclick="applyDatePreset('7D')" class="preset-btn rounded-full px-3 py-1 text-xs font-normal text-sp-secondary hover:text-white transition cursor-pointer">7 วันล่าสุด</button>
+            <button type="button" data-preset="14D" onclick="applyDatePreset('14D')" class="preset-btn rounded-full px-3 py-1 text-xs font-normal text-sp-secondary hover:text-white transition cursor-pointer">14 วันล่าสุด</button>
+            <button type="button" data-preset="PERIOD" onclick="applyDatePreset('PERIOD')" class="preset-btn rounded-full px-3 py-1 text-xs font-normal text-sp-secondary hover:text-white transition cursor-pointer">ตามรอบเดือน</button>
+          </div>
+
+          <!-- Date Range Inputs -->
+          <div class="flex items-center gap-1.5 bg-sp-dark px-3 py-1.5 rounded-full border border-[#282828]">
+            <span class="text-[11px] text-sp-secondary font-semibold">ช่วงเวลา:</span>
+            <input type="date" id="startDateInput" class="sp-input rounded-full px-2.5 py-1 text-xs font-mono text-white" />
+            <span class="text-sp-secondary text-xs">ถึง</span>
+            <input type="date" id="endDateInput" class="sp-input rounded-full px-2.5 py-1 text-xs font-mono text-white" />
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="mainContent" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+      <!-- แถบแจ้งเตือนสีเหลืองเมื่อใช้ข้อมูลสำรองจากไฟล์ JSON -->
+      <div id="fallbackWarningBanner" class="hidden rounded-lg bg-sp-warning/15 border border-sp-warning px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 text-xs sm:text-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-sp-warning shrink-0"></span>
+          <span class="font-bold text-sp-warning">ข้อมูลสำรองจากไฟล์ (ไม่ใช่ข้อมูลล่าสุด)</span>
+          <span id="fallbackReasonText" class="text-sp-nearWhite text-xs"></span>
+        </div>
+        <button type="button" onclick="loadDashboardData()" class="rounded-full bg-sp-warning text-black text-xs font-bold px-3.5 py-1 hover:opacity-90 transition cursor-pointer">
+          ลองเชื่อมต่อ /api/data อีกครั้ง
+        </button>
+      </div>
+
+      <!-- Loading / Error State -->
+      <div id="loadingOrErrorBox" class="rounded-lg bg-sp-dark border border-[#282828] p-10 text-center max-w-2xl mx-auto my-8 shadow-sp-dialog">
+        <div id="stateIconBox" class="w-14 h-14 rounded-full bg-sp-mid text-sp-green flex items-center justify-center mx-auto mb-4">
+          <svg class="w-7 h-7 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </div>
+        <h2 id="stateTitle" class="text-lg font-bold text-white">กำลังโหลดข้อมูลคลังยาและประวัติการจ่าย...</h2>
+        <p id="stateMessage" class="text-sm text-sp-secondary mt-2 leading-relaxed">
+          กำลังเรียก <span class="font-mono text-white">/api/data</span> (หมดเวลาอัตโนมัติใน 8 วินาที)
+        </p>
+        <div class="mt-6 flex flex-wrap justify-center gap-3">
+          <button type="button" onclick="loadDashboardData()" class="rounded-full bg-sp-green hover:bg-[#1fdf64] text-black sp-btn-label px-7 py-2.5 transition cursor-pointer">
+            ลองใหม่อีกครั้ง
+          </button>
+          <a href="./dashboard.html" class="rounded-full border border-sp-borderLight hover:border-white text-white sp-btn-label px-6 py-2.5 transition">
+            รีโหลดหน้า dashboard.html
+          </a>
+        </div>
+      </div>
+
+      <!-- Dynamic Dashboard Container -->
+      <div id="dashboardRoot" class="hidden space-y-6"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[#282828] bg-sp-base px-4 sm:px-6 py-4 mt-8">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-sp-secondary">
+        <div>Pharmacy Operations Dashboard • Spotify Dark UI Theme</div>
+        <div class="flex items-center gap-4">
+          <a href="./drug_dashboard.html" class="hover:text-white underline">ไปยังหน้าทะเบียนรายการยา</a>
+          <a href="./dashboard.html" class="hover:text-white underline">หน้าหลักคลังยา (dashboard.html)</a>
+          <span id="footerMeta" class="font-mono">กำลังเชื่อมต่อ /api/data</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. STATE MANAGEMENT (ไม่มีการฝังข้อมูลดิบหรือ key ใด ๆ ในไฟล์ HTML)
+    // =========================================================================
+    const state = {
+      drugs: null,
+      stock: null,
+      dispense: null,
+      asOfDate: null,
+      dataSource: 'loading', // 'supabase' | 'fallback' | 'error'
+      activeTab: 'overview',
+      dateStart: '',
+      dateEnd: '',
+      preset: 'ALL',
+      // Sub-filters
+      stockStatusFilter: 'ALL',
+      expiryWindowFilter: 'ALL',
+      stockSearch: '',
+      reorderOnlyAlert: false,
+      dispensePharmFilter: 'ALL',
+      dispenseTypeFilter: 'ALL',
+      dispenseSearch: '',
+    };
+
+    let charts = {};
+
+    Chart.defaults.font.family = "'Inter', 'Noto Sans Thai', sans-serif";
+    Chart.defaults.color = '#b3b3b3';
+
+    function destroyCharts() {
+      Object.keys(charts).forEach((k) => {
+        if (charts[k]) {
+          charts[k].destroy();
+          delete charts[k];
+        }
+      });
+    }
+
+    // ฟังก์ชัน escape ข้อมูลทุกค่าก่อนแสดงผลผ่าน innerHTML เพื่อป้องกัน XSS
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function fmtNum(n) {
+      return Number(n || 0).toLocaleString('en-US');
+    }
+
+    function fmtMoney(n) {
+      return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // แปลงวันที่รูปแบบ YYYY-MM-DD เป็นค่า UTC Timestamp สำหรับคำนวณผลต่างจำนวนวันโดยไม่เพี้ยนตามเขตเวลา
+    function parseIsoDateUtc(dateStr) {
+      const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+      return Date.UTC(y, m - 1, d);
+    }
+
+    function shiftIsoDate(dateStr, deltaDays) {
+      const utc = parseIsoDateUtc(dateStr) + deltaDays * 86400000;
+      return new Date(utc).toISOString().slice(0, 10);
+    }
+
+    // =========================================================================
+    // 2. TOAST NOTIFICATION
+    // =========================================================================
+    let toastTimeout = null;
+    function showToast(title, msg, tone = 'green') {
+      const banner = document.getElementById('toastBanner');
+      const dot = document.getElementById('toastDot');
+      const colors = {
+        green: 'bg-sp-green',
+        warning: 'bg-sp-warning',
+        negative: 'bg-sp-negative',
+        info: 'bg-sp-announcement',
+      };
+      dot.className = `w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${colors[tone] || colors.green}`;
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastMessage').textContent = msg;
+      banner.classList.remove('hidden');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(hideToast, 4500);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBanner').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 3. การดึงข้อมูลจาก /api/data (Supabase) และทางสำรองไฟล์ JSON
+    // =========================================================================
+    function applyLoadedDatasets(drugsObj, stockObj, dispenseObj, sourceType, fallbackReason = '') {
+      state.drugs = drugsObj;
+      state.stock = stockObj;
+      state.dispense = dispenseObj;
+      state.dataSource = sourceType;
+
+      // วันอ้างอิงต้องใช้ stock.meta.as_of ตามกติกา ห้ามใช้ new Date()
+      state.asOfDate =
+        (stockObj.meta && stockObj.meta.as_of) ||
+        (dispenseObj.meta && dispenseObj.meta.as_of) ||
+        (drugsObj.meta && drugsObj.meta.as_of) ||
+        '2026-11-02';
+
+      // กำหนดช่วงวันที่เริ่มต้นจาก dispense_log ด้วยข้อความ slice(0,10) ไม่แปลงเขตเวลา
+      const dates = dispenseObj.items
+        .map((i) => String(i.datetime || '').slice(0, 10))
+        .filter(Boolean)
+        .sort();
+      state.dateStart = dates[0] || '';
+      state.dateEnd = dates[dates.length - 1] || '';
+      state.preset = 'ALL';
+
+      document.getElementById('startDateInput').value = state.dateStart;
+      document.getElementById('endDateInput').value = state.dateEnd;
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        const active = btn.getAttribute('data-preset') === 'ALL';
+        btn.className = active
+          ? 'preset-btn rounded-full px-3 py-1 text-xs font-bold bg-sp-mid text-white transition cursor-pointer'
+          : 'preset-btn rounded-full px-3 py-1 text-xs font-normal text-sp-secondary hover:text-white transition cursor-pointer';
+      });
+
+      // อัปเดตสถานะในแถบด้านข้าง
+      const elDrugs = document.getElementById('statusDrugs');
+      elDrugs.textContent = `✓ ${drugsObj.items.length} SKUs`;
+      elDrugs.className = 'font-mono text-[11px] text-sp-green font-bold';
+
+      const elStock = document.getElementById('statusStock');
+      elStock.textContent = `✓ ${stockObj.items.length} ล็อต`;
+      elStock.className = 'font-mono text-[11px] text-sp-green font-bold';
+
+      const elDisp = document.getElementById('statusDispense');
+      elDisp.textContent = `✓ ${dispenseObj.items.length} รายการ`;
+      elDisp.className = 'font-mono text-[11px] text-sp-green font-bold';
+
+      // อัปเดตป้ายแหล่งข้อมูลมุมบน, Header, Sidebar และ Footer ตามแหล่งข้อมูลจริง
+      const sourcePill = document.getElementById('sourcePillTop');
+      const fallbackBanner = document.getElementById('fallbackWarningBanner');
+      const headerSubtitle = document.getElementById('headerSubtitle');
+      const footerMeta = document.getElementById('footerMeta');
+
+      if (sourceType === 'supabase') {
+        sourcePill.className = 'inline-flex items-center gap-1.5 rounded-full bg-[#1db954]/20 border border-sp-greenBorder px-3 py-0.5 text-[11px] font-bold text-sp-green';
+        sourcePill.innerHTML = `<span class="w-2 h-2 rounded-full bg-sp-green"></span> ข้อมูลจาก Supabase • as_of ${escapeHtml(state.asOfDate)}`;
+        fallbackBanner.classList.add('hidden');
+
+        document.getElementById('sidebarSourceTitle').textContent = 'แหล่งข้อมูล: Supabase';
+        document.getElementById('labelDrugsSource').textContent = 'drugs (/api/data)';
+        document.getElementById('labelStockSource').textContent = 'stock (/api/data)';
+        document.getElementById('labelDispenseSource').textContent = 'dispense_log (/api/data)';
+        headerSubtitle.textContent = `ข้อมูลสดจากฐานข้อมูล Supabase ผ่าน /api/data (as_of: ${state.asOfDate}) • ตรวจสอบความเคลื่อนไหวตามช่วงเวลาที่กำหนด`;
+        footerMeta.textContent = `Source: Supabase (/api/data) • as_of: ${state.asOfDate}`;
+      } else {
+        sourcePill.className = 'inline-flex items-center gap-1.5 rounded-full bg-sp-warning/20 border border-sp-warning px-3 py-0.5 text-[11px] font-bold text-sp-warning';
+        sourcePill.innerHTML = `<span class="w-2 h-2 rounded-full bg-sp-warning"></span> ข้อมูลสำรองจากไฟล์ JSON • as_of ${escapeHtml(state.asOfDate)}`;
+        fallbackBanner.classList.remove('hidden');
+        document.getElementById('fallbackReasonText').textContent = fallbackReason ? `(${fallbackReason})` : '';
+
+        document.getElementById('sidebarSourceTitle').textContent = 'แหล่งข้อมูลสำรอง (JSON)';
+        document.getElementById('labelDrugsSource').textContent = 'drugs_update.json';
+        document.getElementById('labelStockSource').textContent = 'stock.json';
+        document.getElementById('labelDispenseSource').textContent = 'dispense-log.json';
+        headerSubtitle.textContent = `กำลังแสดงผลจากไฟล์สำรอง ./data/*.json (as_of: ${state.asOfDate}) • ข้อมูลอาจไม่ใช่ปัจจุบัน`;
+        footerMeta.textContent = `Source: Fallback JSON (./data/*.json) • as_of: ${state.asOfDate}`;
+      }
+
+      document.getElementById('loadingOrErrorBox').classList.add('hidden');
+      document.getElementById('dashboardRoot').classList.remove('hidden');
+      refreshDashboardState();
+    }
+
+    // ฟังก์ชันหลัก: เรียก /api/data โดยตั้งเวลาหมดอายุ 8 วินาที หากล้มเหลวให้สลับไปอ่านไฟล์ JSON สำรอง
+    async function loadDashboardData() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // หมดเวลา 8 วินาที
+
+      try {
+        const res = await fetch('/api/data', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.status !== 200) {
+          throw new Error(`HTTP ${res.status} จาก /api/data`);
+        }
+
+        const payload = await res.json();
+        // ตรวจสอบว่ามีครบทั้ง drugs, stock และ dispense_log
+        if (
+          !payload ||
+          !payload.drugs || !Array.isArray(payload.drugs.items) || payload.drugs.items.length === 0 ||
+          !payload.stock || !Array.isArray(payload.stock.items) || payload.stock.items.length === 0 ||
+          !payload.dispense_log || !Array.isArray(payload.dispense_log.items)
+        ) {
+          throw new Error('ข้อมูลจาก /api/data ไม่ครบถ้วน (ขาด drugs, stock หรือ dispense_log)');
+        }
+
+        applyLoadedDatasets(payload.drugs, payload.stock, payload.dispense_log, 'supabase');
+        showToast('เชื่อมต่อ Supabase สำเร็จ', `โหลดข้อมูลล่าสุด ณ วันที่ ${state.asOfDate} เรียบร้อยแล้ว`, 'green');
+      } catch (apiErr) {
+        clearTimeout(timeoutId);
+        const reason = apiErr.name === 'AbortError'
+          ? 'หมดเวลาเชื่อมต่อ /api/data เกิน 8 วินาที'
+          : (apiErr.message || 'ไม่สามารถเชื่อมต่อ /api/data');
+
+        // ทางสำรอง: อ่านไฟล์ JSON ในโฟลเดอร์ ./data/ ตามที่กำหนด
+        await loadFallbackJsonFiles(reason);
+      }
+    }
+
+    // ทางสำรองเมื่อ /api/data ล้มเหลว: โหลด ./data/drugs_update.json, ./data/stock.json, ./data/dispense-log.json
+    async function loadFallbackJsonFiles(apiFailureReason) {
+      const fetchJsonWithFallbackPath = async (paths) => {
+        for (const p of paths) {
+          try {
+            const r = await fetch(p, { cache: 'no-store' });
+            if (r.ok) return await r.json();
+          } catch (_) {
+            // ลอง path ถัดไป
+          }
+        }
+        throw new Error(`ไม่สามารถโหลดไฟล์ ${paths[0]}`);
+      };
+
+      try {
+        const [drugsJson, stockJson, dispenseJson] = await Promise.all([
+          fetchJsonWithFallbackPath(['./data/drugs_update.json', './drugs_update.json']),
+          fetchJsonWithFallbackPath(['./data/stock.json', './stock.json']),
+          fetchJsonWithFallbackPath(['./data/dispense-log.json', './dispense-log.json']),
+        ]);
+
+        if (!drugsJson?.items?.length || !stockJson?.items?.length || !dispenseJson?.items?.length) {
+          throw new Error('โครงสร้างไฟล์ JSON สำรองไม่สมบูรณ์');
+        }
+
+        applyLoadedDatasets(drugsJson, stockJson, dispenseJson, 'fallback', apiFailureReason);
+        showToast('ใช้ข้อมูลสำรองจากไฟล์ JSON', 'ข้อมูลสำรองจากไฟล์ (ไม่ใช่ข้อมูลล่าสุด)', 'warning');
+      } catch (fallbackErr) {
+        state.dataSource = 'error';
+        document.getElementById('dashboardRoot').classList.add('hidden');
+        document.getElementById('loadingOrErrorBox').classList.remove('hidden');
+
+        const sourcePill = document.getElementById('sourcePillTop');
+        sourcePill.className = 'inline-flex items-center gap-1.5 rounded-full bg-sp-negative/20 border border-sp-negative px-3 py-0.5 text-[11px] font-bold text-sp-negative';
+        sourcePill.textContent = 'ไม่สามารถโหลดข้อมูลได้';
+
+        document.getElementById('stateIconBox').className = 'w-14 h-14 rounded-full bg-sp-negative/20 text-sp-negative flex items-center justify-center mx-auto mb-4';
+        document.getElementById('stateIconBox').innerHTML = `
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+        `;
+        document.getElementById('stateTitle').textContent = 'ไม่สามารถเชื่อมต่อ API หรือไฟล์ข้อมูลสำรองได้';
+        document.getElementById('stateMessage').textContent = 'ทดสอบผ่านลิงก์ Vercel เท่านั้น (Live Server ไม่รัน /api)';
+        document.getElementById('footerMeta').textContent = 'ทดสอบผ่านลิงก์ Vercel เท่านั้น (Live Server ไม่รัน /api)';
+      }
+    }
+
+    // =========================================================================
+    // 4. DATE RANGE FILTERING LOGIC
+    // =========================================================================
+    function applyDatePreset(preset) {
+      state.preset = preset;
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        const active = btn.getAttribute('data-preset') === preset;
+        btn.className = active
+          ? 'preset-btn rounded-full px-3 py-1 text-xs font-bold bg-sp-mid text-white transition cursor-pointer'
+          : 'preset-btn rounded-full px-3 py-1 text-xs font-normal text-sp-secondary hover:text-white transition cursor-pointer';
+      });
+
+      if (!state.dispense) return;
+      const allDates = state.dispense.items.map((i) => String(i.datetime || '').slice(0, 10)).sort();
+      const minD = allDates[0];
+      const maxD = allDates[allDates.length - 1];
+      const refEnd = state.asOfDate || maxD;
+
+      if (preset === 'ALL') {
+        state.dateStart = minD;
+        state.dateEnd = maxD;
+      } else if (preset === 'PERIOD') {
+        state.dateStart = '2026-10-03';
+        state.dateEnd = '2026-11-01';
+      } else if (preset === '7D' || preset === '14D') {
+        const days = preset === '7D' ? 6 : 13;
+        state.dateStart = shiftIsoDate(refEnd, -days);
+        state.dateEnd = refEnd;
+      }
+
+      document.getElementById('startDateInput').value = state.dateStart;
+      document.getElementById('endDateInput').value = state.dateEnd;
+      renderCurrentTab();
+    }
+
+    document.getElementById('startDateInput').addEventListener('change', (e) => {
+      state.dateStart = e.target.value;
+      state.preset = 'CUSTOM';
+      renderCurrentTab();
+    });
+
+    document.getElementById('endDateInput').addEventListener('change', (e) => {
+      state.dateEnd = e.target.value;
+      state.preset = 'CUSTOM';
+      renderCurrentTab();
+    });
+
+    // =========================================================================
+    // 5. CORE ANALYTICAL ENGINE
+    // =========================================================================
+    function computeAnalytics() {
+      const asOfStr = state.asOfDate || '2026-11-02';
+      const asOfUtc = parseIsoDateUtc(asOfStr);
+      const dayMs = 86400000;
+
+      const drugsList = state.drugs ? state.drugs.items : [];
+      const drugsMap = {};
+      drugsList.forEach((d) => {
+        drugsMap[d.sku] = d;
+      });
+
+      // 1. วิเคราะห์รายการล็อตยาในคลัง
+      const stockLots = (state.stock ? state.stock.items : []).map((lot) => {
+        const drug = drugsMap[lot.sku] || {};
+        let daysToExpiry = null;
+        let expiryCategory = 'unknown';
+
+        if (lot.expiry) {
+          const expUtc = parseIsoDateUtc(lot.expiry);
+          daysToExpiry = Math.round((expUtc - asOfUtc) / dayMs);
+        }
+
+        if (lot.status === 'written_off') {
+          expiryCategory = 'written_off';
+        } else if (lot.status === 'quarantine') {
+          expiryCategory = 'quarantine';
+        } else if (daysToExpiry === null) {
+          expiryCategory = 'unknown';
+        } else if (daysToExpiry < 0) {
+          expiryCategory = 'expired';
+        } else if (daysToExpiry <= 60) {
+          expiryCategory = 'critical_60';
+        } else if (daysToExpiry <= 90) {
+          expiryCategory = 'warn_90';
+        } else {
+          expiryCategory = 'normal';
+        }
+
+        return {
+          ...lot,
+          generic_name: drug.generic_name || lot.sku,
+          strength: drug.strength || '-',
+          dosage_form: drug.dosage_form || '-',
+          unit: drug.unit || 'unit',
+          category: drug.category || 'ไม่ระบุหมวดหมู่',
+          atc_code: drug.atc_code || '-',
+          reorder_level: drug.reorder_level ?? null,
+          total_value: Number(lot.qty_on_hand) * Number(lot.unit_cost),
+          daysToExpiry,
+          expiryCategory,
+        };
+      });
+
+      // เรียงลำดับตาม FEFO
+      const stockFefo = [...stockLots].sort((a, b) => {
+        if (a.status !== b.status) {
+          const order = { quarantine: 0, active: 1, written_off: 2 };
+          return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+        }
+        if (!a.expiry) return 1;
+        if (!b.expiry) return -1;
+        return String(a.expiry).localeCompare(String(b.expiry));
+      });
+
+      // 2. วิเคราะห์ประวัติการจ่ายยา (เปรียบเทียบวันเวลาเป็นข้อความ slice(0,10) และ slice(0,16))
+      const allDispense = state.dispense ? state.dispense.items : [];
+      const stockLotLookup = {};
+      stockLots.forEach((l) => {
+        stockLotLookup[`${l.sku}__${l.lot}`] = l;
+      });
+      const lotOnlyLookup = {};
+      stockLots.forEach((l) => {
+        if (!lotOnlyLookup[l.lot]) lotOnlyLookup[l.lot] = [];
+        lotOnlyLookup[l.lot].push(l.sku);
+      });
+
+      const enrichedDispense = allDispense.map((tx) => {
+        const rawDt = String(tx.datetime || '');
+        const dStr = rawDt.slice(0, 10);
+        const dtMinuteStr = rawDt.replace('T', ' ').slice(0, 16);
+        const drug = drugsMap[tx.sku] || {};
+        const matchedLot = stockLotLookup[`${tx.sku}__${tx.lot}`];
+        const auditFlags = [];
+
+        if (tx.type === 'void') auditFlags.push('VOID');
+        if (tx.type === 'return') auditFlags.push('RETURN');
+        if (tx.incident_ref) auditFlags.push(`INCIDENT:${tx.incident_ref}`);
+        if (tx.legacy_id) auditFlags.push(`LEGACY:${tx.legacy_id}`);
+        if (tx.ref_dispense_id) auditFlags.push(`REF:${tx.ref_dispense_id}`);
+        if (Number(tx.qty) !== Math.floor(Number(tx.qty))) auditFlags.push('FRACTIONAL_QTY');
+        if (dStr > asOfStr) auditFlags.push('AFTER_AS_OF');
+        if (!matchedLot) {
+          const actualSkus = lotOnlyLookup[tx.lot];
+          if (actualSkus) {
+            auditFlags.push(`LOT_MISMATCH(${actualSkus.join(',')})`);
+          } else {
+            auditFlags.push('UNKNOWN_LOT');
+          }
+        } else if (matchedLot.expiry && dStr > String(matchedLot.expiry).slice(0, 10)) {
+          auditFlags.push('DISPENSED_EXPIRED');
+        }
+
+        return {
+          ...tx,
+          dateStr: dStr,
+          dtMinuteStr,
+          generic_name: drug.generic_name || tx.sku,
+          category: drug.category || 'ไม่ระบุหมวดหมู่',
+          unit: drug.unit || 'unit',
+          auditFlags,
+        };
+      });
+
+      const filteredDispense = enrichedDispense.filter((tx) => {
+        if (state.dateStart && tx.dateStr < state.dateStart) return false;
+        if (state.dateEnd && tx.dateStr > state.dateEnd) return false;
+        return true;
+      });
+
+      let spanDays = 30;
+      if (state.dateStart && state.dateEnd) {
+        const sUtc = parseIsoDateUtc(state.dateStart);
+        const eUtc = parseIsoDateUtc(state.dateEnd);
+        spanDays = Math.max(1, Math.round((eUtc - sUtc) / dayMs) + 1);
+      }
+
+      // 3. คำนวณยอดใช้ได้ (usable_qty) และจุดสั่งซื้อ (usable_qty < reorder_level)
+      // กติกา: ยอดใช้ได้ = ผลรวม qty_on_hand ของล็อตที่ status = 'active' และ expiry >= as_of และ qty_on_hand > 0
+      const usableQtyBySku = {};
+      const quarantineQtyBySku = {};
+      const expSoonQtyBySku = {};
+      const unitCostBySku = {};
+
+      stockLots.forEach((l) => {
+        unitCostBySku[l.sku] = Number(l.unit_cost || 0);
+        if (l.status === 'active' && l.expiry && String(l.expiry).slice(0, 10) >= asOfStr && Number(l.qty_on_hand) > 0) {
+          usableQtyBySku[l.sku] = (usableQtyBySku[l.sku] || 0) + Number(l.qty_on_hand);
+          if (l.daysToExpiry !== null && l.daysToExpiry <= 60) {
+            expSoonQtyBySku[l.sku] = (expSoonQtyBySku[l.sku] || 0) + Number(l.qty_on_hand);
+          }
+        } else if (l.status === 'quarantine') {
+          quarantineQtyBySku[l.sku] = (quarantineQtyBySku[l.sku] || 0) + Number(l.qty_on_hand);
+        }
+      });
+
+      const periodDispenseQtyBySku = {};
+      filteredDispense.forEach((tx) => {
+        if (tx.type === 'dispense') {
+          periodDispenseQtyBySku[tx.sku] = (periodDispenseQtyBySku[tx.sku] || 0) + Number(tx.qty || 0);
+        }
+      });
+
+      const stockedSkus = [...new Set(stockLots.map((l) => l.sku))];
+      const reorderPlan = stockedSkus.map((sku) => {
+        const drug = drugsMap[sku] || {};
+        const usableQty = usableQtyBySku[sku] || 0;
+        const expSoonQty = expSoonQtyBySku[sku] || 0;
+        const usableAfter60d = Math.max(0, usableQty - expSoonQty);
+        const reorderLevel = Number(drug.reorder_level || 0);
+        const dispensedInPeriod = periodDispenseQtyBySku[sku] || 0;
+        const dailyRate = dispensedInPeriod / spanDays;
+        const daysOfSupply = dailyRate > 0 ? Math.round(usableQty / dailyRate) : 999;
+        const unitCost = unitCostBySku[sku] || 0;
+
+        // กติกาจุดสั่งซื้อ: นับเมื่อยอดใช้ได้ < reorder_level (น้อยกว่า ไม่ใช่น้อยกว่าหรือเท่ากับ) ตรงกับ v_below_reorder
+        const belowReorder = usableQty < reorderLevel;
+        const targetStock = Math.max(reorderLevel * 2, Math.ceil(dailyRate * 30));
+        const suggestedQty = belowReorder ? Math.max(reorderLevel, targetStock - usableQty) : 0;
+
+        return {
+          sku,
+          generic_name: drug.generic_name || sku,
+          strength: drug.strength || '-',
+          category: drug.category || '-',
+          unit: drug.unit || 'unit',
+          usableQty,
+          expSoonQty,
+          usableAfter60d,
+          reorderLevel,
+          dispensedInPeriod,
+          dailyRate,
+          daysOfSupply,
+          belowReorder,
+          suggestedQty,
+          estCost: suggestedQty * unitCost,
+        };
+      }).sort((a, b) => (b.belowReorder - a.belowReorder) || (a.daysOfSupply - b.daysOfSupply));
+
+      return {
+        asOfStr,
+        totalCatalogSkus: drugsList.length,
+        stockedSkuCount: stockedSkus.length,
+        stockLots,
+        stockFefo,
+        enrichedDispense,
+        filteredDispense,
+        spanDays,
+        reorderPlan,
+      };
+    }
+
+    // =========================================================================
+    // 6. UI NAVIGATION & RENDERING
+    // =========================================================================
+    function refreshDashboardState() {
+      const hasAny = state.drugs || state.stock || state.dispense;
+      if (!hasAny) return;
+
+      const data = computeAnalytics();
+      document.getElementById('asOfBadge').textContent = `as_of: ${data.asOfStr}`;
+
+      const criticalAlerts =
+        data.stockLots.filter((l) => ['quarantine', 'expired', 'critical_60'].includes(l.expiryCategory)).length +
+        data.filteredDispense.filter((t) => t.auditFlags.length > 0).length;
+
+      document.getElementById('badgeAlertCount').textContent = criticalAlerts;
+      document.getElementById('badgeLotCount').textContent = data.stockLots.length;
+      document.getElementById('badgeReorderCount').textContent = data.reorderPlan.filter((r) => r.belowReorder).length;
+      document.getElementById('badgeDispenseCount').textContent = data.filteredDispense.length;
+
+      renderCurrentTab();
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      document.querySelectorAll('.nav-sub-btn').forEach((btn) => {
+        const isCurrent = btn.getAttribute('data-tab') === tab;
+        btn.className = isCurrent
+          ? 'nav-sub-btn w-full flex items-center justify-between px-3 py-2 rounded-full text-sm font-bold text-white bg-sp-dark transition cursor-pointer'
+          : 'nav-sub-btn w-full flex items-center justify-between px-3 py-2 rounded-full text-sm font-normal text-sp-secondary hover:text-white transition cursor-pointer';
+      });
+      renderCurrentTab();
+    }
+
+    function renderCurrentTab() {
+      const root = document.getElementById('dashboardRoot');
+      if (root.classList.contains('hidden')) return;
+
+      destroyCharts();
+      const data = computeAnalytics();
+
+      document.getElementById('badgeDispenseCount').textContent = data.filteredDispense.length;
+      document.getElementById('badgeReorderCount').textContent = data.reorderPlan.filter((r) => r.belowReorder).length;
+
+      if (state.activeTab === 'overview') renderOverviewTab(root, data);
+      else if (state.activeTab === 'stock') renderStockTab(root, data);
+      else if (state.activeTab === 'reorder') renderReorderTab(root, data);
+      else if (state.activeTab === 'dispense') renderDispenseTab(root, data);
+    }
+
+    // -------------------------------------------------------------------------
+    // TAB 1: OVERVIEW & ALERTS
+    // -------------------------------------------------------------------------
+    function renderOverviewTab(root, data) {
+      const activeLots = data.stockLots.filter((l) => l.status === 'active');
+      const activeVal = activeLots.reduce((s, l) => s + l.total_value, 0);
+      const quarantineLots = data.stockLots.filter((l) => l.status === 'quarantine');
+      const quarantineVal = quarantineLots.reduce((s, l) => s + l.total_value, 0);
+
+      // ใกล้หมดอายุ <= 90 วัน (active, expiry >= as_of, qty_on_hand > 0)
+      const exp90Lots = data.stockLots.filter(
+        (l) => l.status === 'active' && Number(l.qty_on_hand) > 0 && l.daysToExpiry !== null && l.daysToExpiry >= 0 && l.daysToExpiry <= 90
+      );
+      const exp60Lots = exp90Lots.filter((l) => l.daysToExpiry <= 60);
+
+      // ถึงจุดสั่งซื้อ (usableQty < reorder_level)
+      const belowReorderList = data.reorderPlan.filter((r) => r.belowReorder);
+      const belowReorderSkusText = belowReorderList.length > 0
+        ? belowReorderList.map((r) => r.sku).join(', ')
+        : 'ไม่มีรายการต่ำกว่าเกณฑ์';
+
+      // การจ่ายยาในช่วงที่เลือก (นับเฉพาะ type === 'dispense' และแสดง void / return แยก)
+      const dispenseTx = data.filteredDispense.filter((t) => t.type === 'dispense');
+      const voidTx = data.filteredDispense.filter((t) => t.type === 'void');
+      const returnTx = data.filteredDispense.filter((t) => t.type === 'return');
+      const totalDispQty = dispenseTx.reduce((s, t) => s + Number(t.qty || 0), 0);
+      const auditIssues = data.filteredDispense.filter((t) => t.auditFlags.length > 0);
+
+      root.innerHTML = `
+        <div class="animate-reveal space-y-6">
+          <!-- KPI Row -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="sp-surface-card p-5">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">มูลค่าสต็อก Active</div>
+              <div class="text-2xl sm:text-3xl font-bold text-white mt-2 font-mono">฿${fmtMoney(activeVal)}</div>
+              <div class="text-xs text-sp-secondary mt-2">
+                SKU ที่มี Stock: <span class="font-mono font-bold text-sp-green">${data.stockedSkuCount} จาก ${data.totalCatalogSkus}</span>
+              </div>
+            </div>
+
+            <div class="sp-surface-card p-5">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">ใกล้หมดอายุ (≤ 90 วัน) & กักกัน</div>
+              <div class="text-2xl sm:text-3xl font-bold text-sp-warning mt-2 font-mono">${exp90Lots.length} <span class="text-sm font-sans font-normal text-sp-secondary">ล็อต</span></div>
+              <div class="text-xs text-sp-negative mt-2">
+                วิกฤต ≤ 60 วัน: ${exp60Lots.length} ล็อต • ล็อตกักกัน: <span class="font-mono font-bold">${quarantineLots.length}</span> (฿${fmtMoney(quarantineVal)})
+              </div>
+            </div>
+
+            <div class="sp-surface-card p-5">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">ถึงจุดสั่งซื้อ (&lt; Reorder)</div>
+              <div class="text-2xl sm:text-3xl font-bold text-sp-green mt-2 font-mono">${belowReorderList.length} <span class="text-sm font-sans font-normal text-sp-secondary">SKUs</span></div>
+              <div class="text-xs text-sp-warning mt-2 font-mono font-bold truncate" title="${escapeHtml(belowReorderSkusText)}">${escapeHtml(belowReorderSkusText)}</div>
+            </div>
+
+            <div class="sp-surface-card p-5">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">รายการจ่ายในช่วงที่เลือก</div>
+              <div class="text-2xl sm:text-3xl font-bold text-white mt-2 font-mono">${dispenseTx.length} <span class="text-sm font-sans font-normal text-sp-secondary">รายการ</span></div>
+              <div class="text-xs text-sp-announcement mt-2">
+                จ่าย ${fmtNum(totalDispQty)} หน่วย • Void: ${voidTx.length} • Return: ${returnTx.length}
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-7 sp-surface-card p-5">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h2 class="text-base font-bold text-white">แนวโน้มจำนวนครั้งการจ่ายยารายวัน (Daily Dispense Trend)</h2>
+                  <p class="text-xs text-sp-secondary">แสดงข้อมูลตามช่วงวันที่เลือก (${escapeHtml(state.dateStart || '-')} ถึง ${escapeHtml(state.dateEnd || '-')})</p>
+                </div>
+              </div>
+              <div class="h-64">
+                <canvas id="ovDailyChart"></canvas>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 sp-surface-card p-5">
+              <div class="mb-4">
+                <h2 class="text-base font-bold text-white">สถานะอายุคงเหลือของล็อตยาในคลัง</h2>
+                <p class="text-xs text-sp-secondary">แยกตามกลุ่มความเร่งด่วน (FEFO Horizon)</p>
+              </div>
+              <div class="h-64">
+                <canvas id="ovExpiryChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Critical Action Cards -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Quarantine & Expiry Alerts -->
+            <div class="sp-surface-card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-bold text-white">แจ้งเตือนล็อตกักกันและใกล้หมดอายุ</h3>
+                <button type="button" onclick="switchTab('stock')" class="rounded-full bg-sp-mid hover:bg-sp-cardAlt text-white text-xs font-bold px-3.5 py-1.5 cursor-pointer">ดูทั้งหมด</button>
+              </div>
+              <div class="space-y-2">
+                ${data.stockFefo
+                  .filter((l) => ['quarantine', 'expired', 'critical_60', 'warn_90'].includes(l.expiryCategory))
+                  .map((l) => {
+                    const isDanger = l.expiryCategory === 'quarantine' || l.expiryCategory === 'expired';
+                    const badgeClass = isDanger ? 'text-sp-negative' : 'text-sp-warning';
+                    const label = l.status === 'quarantine'
+                      ? `QUARANTINE (${l.expiry ? 'หมดอายุ ' + escapeHtml(l.expiry) : 'ไม่ระบุวันหมดอายุ'})`
+                      : `เหลือ ${l.daysToExpiry} วัน (${escapeHtml(l.expiry)})`;
+                    return `
+                      <div class="flex items-center justify-between rounded-md bg-sp-mid px-3.5 py-2.5 text-xs">
+                        <div>
+                          <span class="font-mono font-bold text-white">${escapeHtml(l.sku)}</span>
+                          <span class="text-sp-secondary ml-1.5">${escapeHtml(l.generic_name)} • Lot ${escapeHtml(l.lot)}</span>
+                        </div>
+                        <div class="text-right">
+                          <div class="font-bold ${badgeClass}">${label}</div>
+                          <div class="text-sp-secondary font-mono">${fmtNum(l.qty_on_hand)} ${escapeHtml(l.unit)}</div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+              </div>
+            </div>
+
+            <!-- Dispense Audit & Incident Alerts -->
+            <div class="sp-surface-card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-bold text-white">รายการตรวจสอบความผิดปกติ (Audit & Incidents)</h3>
+                <button type="button" onclick="switchTab('dispense')" class="rounded-full bg-sp-mid hover:bg-sp-cardAlt text-white text-xs font-bold px-3.5 py-1.5 cursor-pointer">ตรวจสอบ Log</button>
+              </div>
+              <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                ${auditIssues.length === 0
+                  ? '<div class="text-xs text-sp-secondary py-6 text-center">ไม่พบรายการผิดปกติในช่วงเวลาที่เลือก</div>'
+                  : auditIssues.map((tx) => `
+                    <div class="flex items-center justify-between rounded-md bg-sp-mid px-3.5 py-2.5 text-xs">
+                      <div>
+                        <span class="font-mono font-bold text-white">${escapeHtml(tx.dispense_id)}</span>
+                        <span class="text-sp-secondary ml-1.5">${escapeHtml(tx.dateStr)} • ${escapeHtml(tx.sku)} (Lot ${escapeHtml(tx.lot)})</span>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                          ${tx.auditFlags.map((f) => `<span class="rounded-[2px] bg-[#333] px-1.5 py-0.5 font-mono text-[10px] font-bold text-sp-negative">${escapeHtml(f)}</span>`).join('')}
+                        </div>
+                      </div>
+                      <div class="text-right font-mono text-sp-secondary">
+                        <div>${escapeHtml(tx.pharmacist_code)}</div>
+                        <div>qty: ${escapeHtml(tx.qty)}</div>
+                      </div>
+                    </div>
+                  `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Render Overview Daily Chart
+      const dailyMap = {};
+      dispenseTx.forEach((t) => {
+        dailyMap[t.dateStr] = (dailyMap[t.dateStr] || 0) + 1;
+      });
+      const sortedDates = Object.keys(dailyMap).sort();
+
+      charts.ovDaily = new Chart(document.getElementById('ovDailyChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: sortedDates.map((d) => d.slice(5)),
+          datasets: [{
+            label: 'จำนวนครั้งที่จ่ายยา',
+            data: sortedDates.map((d) => dailyMap[d]),
+            backgroundColor: '#1ed760',
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, ticks: { stepSize: 2 }, grid: { color: '#2a2a2a' } },
+          },
+        },
+      });
+
+      // Render Expiry Doughnut Chart
+      const buckets = {
+        'ปกติ (> 90 วัน)': data.stockLots.filter((l) => l.expiryCategory === 'normal').length,
+        'เฝ้าระวัง (61–90 วัน)': data.stockLots.filter((l) => l.expiryCategory === 'warn_90').length,
+        'วิกฤต (≤ 60 วัน)': data.stockLots.filter((l) => l.expiryCategory === 'critical_60').length,
+        'กักกัน (Quarantine)': data.stockLots.filter((l) => l.expiryCategory === 'quarantine').length,
+        'ตัดจำหน่าย (Written-off)': data.stockLots.filter((l) => l.expiryCategory === 'written_off').length,
+      };
+
+      charts.ovExpiry = new Chart(document.getElementById('ovExpiryChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(buckets),
+          datasets: [{
+            data: Object.values(buckets),
+            backgroundColor: ['#1ed760', '#ffa42b', '#f3727f', '#539df5', '#4d4d4d'],
+            borderWidth: 2,
+            borderColor: '#181818',
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '64%',
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } },
+          },
+        },
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // TAB 2: STOCK & EXPIRY (FEFO)
+    // -------------------------------------------------------------------------
+    function renderStockTab(root, data) {
+      const filteredLots = data.stockFefo.filter((l) => {
+        if (state.stockStatusFilter !== 'ALL' && l.status !== state.stockStatusFilter) return false;
+        if (state.expiryWindowFilter === '90' && !(l.daysToExpiry !== null && l.daysToExpiry <= 90 && l.status !== 'written_off')) return false;
+        if (state.expiryWindowFilter === '180' && !(l.daysToExpiry !== null && l.daysToExpiry <= 180 && l.status !== 'written_off')) return false;
+        const q = state.stockSearch.trim().toLowerCase();
+        if (q && !String(l.sku).toLowerCase().includes(q) && !String(l.generic_name).toLowerCase().includes(q) && !String(l.lot).toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      root.innerHTML = `
+        <div class="animate-reveal space-y-5">
+          <!-- Filter Bar -->
+          <div class="sp-surface-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="text" id="stockSearchInput" value="${escapeHtml(state.stockSearch)}" placeholder="ค้นหา SKU, ชื่อยา หรือเลข Lot..." class="sp-input rounded-full px-4 py-2 text-xs w-64" />
+              <select id="stockStatusSelect" class="sp-input rounded-full px-3.5 py-2 text-xs font-semibold">
+                <option value="ALL" ${state.stockStatusFilter === 'ALL' ? 'selected' : ''}>ทุกสถานะคลัง (${data.stockLots.length})</option>
+                <option value="active" ${state.stockStatusFilter === 'active' ? 'selected' : ''}>Active (พร้อมจ่าย)</option>
+                <option value="quarantine" ${state.stockStatusFilter === 'quarantine' ? 'selected' : ''}>Quarantine (กักกัน)</option>
+                <option value="written_off" ${state.stockStatusFilter === 'written_off' ? 'selected' : ''}>Written-off (ตัดจำหน่าย)</option>
+              </select>
+              <select id="expiryWindowSelect" class="sp-input rounded-full px-3.5 py-2 text-xs font-semibold">
+                <option value="ALL" ${state.expiryWindowFilter === 'ALL' ? 'selected' : ''}>ทุกช่วงวันหมดอายุ</option>
+                <option value="90" ${state.expiryWindowFilter === '90' ? 'selected' : ''}>หมดอายุแล้ว / ภายใน 90 วัน</option>
+                <option value="180" ${state.expiryWindowFilter === '180' ? 'selected' : ''}>หมดอายุแล้ว / ภายใน 180 วัน</option>
+              </select>
+            </div>
+            <div class="text-xs text-sp-secondary font-mono">เรียงลำดับตาม FEFO (หมดอายุก่อนอยู่บน)</div>
+          </div>
+
+          <!-- FEFO Table -->
+          <div class="rounded-lg bg-sp-dark overflow-hidden border border-[#282828]">
+            <div class="overflow-x-auto max-h-[540px]">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-sp-mid sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-sp-secondary border-b border-[#333]">
+                  <tr>
+                    <th class="py-3 px-4">Stock ID</th>
+                    <th class="py-3 px-4">SKU / ชื่อสามัญ</th>
+                    <th class="py-3 px-4">Lot</th>
+                    <th class="py-3 px-4">วันที่รับเข้า</th>
+                    <th class="py-3 px-4">วันหมดอายุ</th>
+                    <th class="py-3 px-4">อายุคงเหลือ</th>
+                    <th class="py-3 px-4 text-right">คงเหลือ</th>
+                    <th class="py-3 px-4 text-right">มูลค่า (฿)</th>
+                    <th class="py-3 px-4">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#282828] text-xs">
+                  ${filteredLots.map((l) => {
+                    let expBadge = `<span class="text-sp-secondary">${l.daysToExpiry !== null ? l.daysToExpiry + ' วัน' : 'ไม่ระบุ (null)'}</span>`;
+                    if (l.daysToExpiry !== null) {
+                      if (l.daysToExpiry < 0) expBadge = `<span class="font-bold text-sp-negative">เลยกำหนด ${Math.abs(l.daysToExpiry)} วัน</span>`;
+                      else if (l.daysToExpiry <= 60) expBadge = `<span class="font-bold text-sp-negative">${l.daysToExpiry} วัน (วิกฤต)</span>`;
+                      else if (l.daysToExpiry <= 90) expBadge = `<span class="font-bold text-sp-warning">${l.daysToExpiry} วัน (เฝ้าระวัง)</span>`;
+                    }
+
+                    const statusBadge = l.status === 'active'
+                      ? '<span class="rounded-[2px] bg-[#1db954]/20 text-sp-green px-2 py-0.5 font-mono text-[10.5px] font-bold">ACTIVE</span>'
+                      : l.status === 'quarantine'
+                      ? '<span class="rounded-[2px] bg-sp-warning/20 text-sp-warning px-2 py-0.5 font-mono text-[10.5px] font-bold">QUARANTINE</span>'
+                      : '<span class="rounded-[2px] bg-sp-borderGray/40 text-sp-secondary px-2 py-0.5 font-mono text-[10.5px] font-bold">WRITTEN_OFF</span>';
+
+                    return `
+                      <tr class="hover:bg-sp-cardAlt transition-colors">
+                        <td class="py-2.5 px-4 font-mono text-sp-secondary">${escapeHtml(l.stock_id)}</td>
+                        <td class="py-2.5 px-4">
+                          <div class="font-mono font-bold text-white">${escapeHtml(l.sku)}</div>
+                          <div class="text-sp-secondary text-[11px]">${escapeHtml(l.generic_name)} (${escapeHtml(l.strength)})</div>
+                        </td>
+                        <td class="py-2.5 px-4 font-mono text-sp-nearWhite">${escapeHtml(l.lot)}</td>
+                        <td class="py-2.5 px-4 font-mono text-sp-secondary">${escapeHtml(l.received_date)}</td>
+                        <td class="py-2.5 px-4 font-mono text-white">${escapeHtml(l.expiry || 'null')}</td>
+                        <td class="py-2.5 px-4">${expBadge}</td>
+                        <td class="py-2.5 px-4 text-right font-mono font-bold text-white">${fmtNum(l.qty_on_hand)} <span class="font-normal text-sp-secondary">${escapeHtml(l.unit)}</span></td>
+                        <td class="py-2.5 px-4 text-right font-mono text-sp-nearWhite">${fmtMoney(l.total_value)}</td>
+                        <td class="py-2.5 px-4">${statusBadge}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('stockSearchInput').addEventListener('input', (e) => {
+        state.stockSearch = e.target.value;
+        renderCurrentTab();
+      });
+      document.getElementById('stockStatusSelect').addEventListener('change', (e) => {
+        state.stockStatusFilter = e.target.value;
+        renderCurrentTab();
+      });
+      document.getElementById('expiryWindowSelect').addEventListener('change', (e) => {
+        state.expiryWindowFilter = e.target.value;
+        renderCurrentTab();
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // TAB 3: REORDER & PROCUREMENT PLANNER
+    // -------------------------------------------------------------------------
+    function renderReorderTab(root, data) {
+      const rows = state.reorderOnlyAlert
+        ? data.reorderPlan.filter((r) => r.belowReorder)
+        : data.reorderPlan;
+
+      const totalEstBudget = rows.reduce((s, r) => s + r.estCost, 0);
+
+      root.innerHTML = `
+        <div class="animate-reveal space-y-5">
+          <div class="sp-surface-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-white">วิเคราะห์จุดสั่งซื้อ (Reorder) และระยะเวลาคงเหลือของสต็อก (Days of Supply)</h2>
+              <p class="text-xs text-sp-secondary mt-0.5">
+                คำนวณจุดสั่งซื้อเมื่อ <span class="font-mono text-white">ยอดใช้ได้ &lt; reorder_level</span> (ตรงกับ v_below_reorder) • อัตราจ่ายจากช่วง <span class="font-mono text-white">${escapeHtml(state.dateStart)}</span> ถึง <span class="font-mono text-white">${escapeHtml(state.dateEnd)}</span> (${data.spanDays} วัน)
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button type="button" id="toggleReorderOnlyBtn" class="rounded-full px-4 py-2 text-xs font-bold transition cursor-pointer ${
+                state.reorderOnlyAlert ? 'bg-sp-green text-black' : 'bg-sp-mid text-white border border-sp-borderLight'
+              }">
+                ${state.reorderOnlyAlert ? '✓ แสดงเฉพาะรายการถึงจุดสั่งซื้อ' : 'แสดงเฉพาะรายการถึงจุดสั่งซื้อ'}
+              </button>
+              <button type="button" onclick="exportPurchaseOrderCsv()" class="rounded-full bg-sp-green hover:bg-[#1fdf64] text-black sp-btn-label px-5 py-2.5 transition cursor-pointer">
+                ส่งออกใบสั่งซื้อ (CSV)
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-lg bg-sp-dark overflow-hidden border border-[#282828]">
+            <div class="overflow-x-auto max-h-[540px]">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-sp-mid sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-sp-secondary border-b border-[#333]">
+                  <tr>
+                    <th class="py-3 px-4">SKU / ชื่อยา</th>
+                    <th class="py-3 px-4 text-right">ยอดใช้ได้ (Usable)</th>
+                    <th class="py-3 px-4 text-right">หมดอายุ ≤60 วัน</th>
+                    <th class="py-3 px-4 text-right">เกณฑ์ Reorder</th>
+                    <th class="py-3 px-4 text-right">จ่ายออก (${data.spanDays} วัน)</th>
+                    <th class="py-3 px-4 text-right">พอใช้ (วัน)</th>
+                    <th class="py-3 px-4 text-right">แนะนำสั่งซื้อ</th>
+                    <th class="py-3 px-4 text-right">งบประมาณ (฿)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#282828] text-xs">
+                  ${rows.map((r) => {
+                    const rowHighlight = r.belowReorder ? 'bg-sp-warning/5' : '';
+                    const dosText = r.daysOfSupply >= 999 ? 'ไม่มีการจ่าย' : `${r.daysOfSupply} วัน`;
+                    const dosClass = r.daysOfSupply <= 15 ? 'text-sp-negative font-bold' : r.daysOfSupply <= 30 ? 'text-sp-warning font-bold' : 'text-sp-secondary';
+                    return `
+                      <tr class="${rowHighlight} hover:bg-sp-cardAlt transition-colors">
+                        <td class="py-2.5 px-4">
+                          <div class="font-mono font-bold text-white">${escapeHtml(r.sku)}</div>
+                          <div class="text-[11px] text-sp-secondary">${escapeHtml(r.generic_name)} • ${escapeHtml(r.category)}</div>
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono font-bold ${r.belowReorder ? 'text-sp-negative' : 'text-white'}">${fmtNum(r.usableQty)}</td>
+                        <td class="py-2.5 px-4 text-right font-mono ${r.expSoonQty > 0 ? 'text-sp-warning font-bold' : 'text-sp-secondary'}">${fmtNum(r.expSoonQty)}</td>
+                        <td class="py-2.5 px-4 text-right font-mono text-sp-nearWhite">${fmtNum(r.reorderLevel)}</td>
+                        <td class="py-2.5 px-4 text-right font-mono text-sp-announcement">${fmtNum(r.dispensedInPeriod)}</td>
+                        <td class="py-2.5 px-4 text-right font-mono ${dosClass}">${dosText}</td>
+                        <td class="py-2.5 px-4 text-right font-mono font-bold ${r.suggestedQty > 0 ? 'text-sp-green' : 'text-sp-secondary'}">
+                          ${r.suggestedQty > 0 ? '+' + fmtNum(r.suggestedQty) + ' ' + escapeHtml(r.unit) : '–'}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono text-white">${r.estCost > 0 ? fmtMoney(r.estCost) : '–'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+            <div class="bg-sp-mid px-5 py-3 border-t border-[#333] flex justify-between items-center text-xs">
+              <span class="text-sp-secondary">รายการทั้งหมด ${rows.length} SKUs (ถึงจุดสั่งซื้อ ${rows.filter((r) => r.belowReorder).length} SKUs)</span>
+              <span class="font-mono font-bold text-sp-green">ประมาณการงบสั่งซื้อรวม: ฿${fmtMoney(totalEstBudget)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('toggleReorderOnlyBtn').addEventListener('click', () => {
+        state.reorderOnlyAlert = !state.reorderOnlyAlert;
+        renderCurrentTab();
+      });
+    }
+
+    function exportPurchaseOrderCsv() {
+      const data = computeAnalytics();
+      const orderItems = data.reorderPlan.filter((r) => r.suggestedQty > 0);
+      if (!orderItems.length) {
+        showToast('ไม่มีรายการสั่งซื้อ', 'สต็อกทุกรายการอยู่ในเกณฑ์ปลอดภัย', 'info');
+        return;
+      }
+      const headers = ['SKU', 'Generic_Name', 'Strength', 'Unit', 'Usable_Qty', 'Expiring_60d', 'Reorder_Level', 'Period_Dispensed', 'Suggested_Order_Qty', 'Est_Cost_THB'];
+      const lines = [headers.join(',')];
+      orderItems.forEach((r) => {
+        lines.push([
+          r.sku,
+          `"${r.generic_name}"`,
+          `"${r.strength}"`,
+          r.unit,
+          r.usableQty,
+          r.expSoonQty,
+          r.reorderLevel,
+          r.dispensedInPeriod,
+          r.suggestedQty,
+          r.estCost.toFixed(2),
+        ].join(','));
+      });
+
+      const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `purchase-order_${data.asOfStr}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('ส่งออกใบสั่งซื้อสำเร็จ', `บันทึกไฟล์ CSV จำนวน ${orderItems.length} รายการเรียบร้อยแล้ว`, 'green');
+    }
+
+    // -------------------------------------------------------------------------
+    // TAB 4: DISPENSE LOG & AUDIT
+    // -------------------------------------------------------------------------
+    function renderDispenseTab(root, data) {
+      const pharmacists = [...new Set(data.enrichedDispense.map((t) => t.pharmacist_code))].sort();
+
+      // คำนวณ KPI เฉพาะช่วงเวลาที่เลือก: นับรายการจ่ายเฉพาะ type === 'dispense' แสดง void และ return แยก
+      const dispenseOnly = data.filteredDispense.filter((t) => t.type === 'dispense');
+      const voidOnly = data.filteredDispense.filter((t) => t.type === 'void');
+      const returnOnly = data.filteredDispense.filter((t) => t.type === 'return');
+      const uniqueSkusDispensed = new Set(dispenseOnly.map((t) => t.sku)).size;
+      const uniquePatientsDispensed = new Set(dispenseOnly.map((t) => t.patient_code)).size;
+
+      const rows = data.filteredDispense.filter((t) => {
+        if (state.dispensePharmFilter !== 'ALL' && t.pharmacist_code !== state.dispensePharmFilter) return false;
+        if (state.dispenseTypeFilter === 'DISPENSE' && t.type !== 'dispense') return false;
+        if (state.dispenseTypeFilter === 'VOID' && t.type !== 'void') return false;
+        if (state.dispenseTypeFilter === 'RETURN' && t.type !== 'return') return false;
+        if (state.dispenseTypeFilter === 'AUDIT' && t.auditFlags.length === 0) return false;
+        const q = state.dispenseSearch.trim().toLowerCase();
+        if (
+          q &&
+          !String(t.dispense_id).toLowerCase().includes(q) &&
+          !String(t.sku).toLowerCase().includes(q) &&
+          !String(t.patient_code).toLowerCase().includes(q) &&
+          !String(t.lot).toLowerCase().includes(q)
+        ) return false;
+        return true;
+      });
+
+      root.innerHTML = `
+        <div class="animate-reveal space-y-5">
+          <!-- Dispense KPI Summary Row -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="sp-surface-card p-4">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">รายการจ่าย (Dispense)</div>
+              <div class="text-2xl font-bold text-sp-green mt-1.5 font-mono">${dispenseOnly.length} <span class="text-xs font-sans font-normal text-sp-secondary">รายการ</span></div>
+              <div class="text-[11px] text-sp-secondary mt-1">นับเฉพาะ type = 'dispense'</div>
+            </div>
+
+            <div class="sp-surface-card p-4">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">ยกเลิก / คืนยา (Void & Return)</div>
+              <div class="text-2xl font-bold text-sp-negative mt-1.5 font-mono">
+                Void: ${voidOnly.length} <span class="text-sm text-sp-announcement ml-2">Return: ${returnOnly.length}</span>
+              </div>
+              <div class="text-[11px] text-sp-secondary mt-1">รวมทั้งหมดในตาราง ${data.filteredDispense.length} รายการ</div>
+            </div>
+
+            <div class="sp-surface-card p-4">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">SKU ที่จ่าย</div>
+              <div class="text-2xl font-bold text-white mt-1.5 font-mono">${uniqueSkusDispensed} <span class="text-xs font-sans font-normal text-sp-secondary">SKUs</span></div>
+              <div class="text-[11px] text-sp-secondary mt-1">รายการยาที่มีการจ่ายออกจริง</div>
+            </div>
+
+            <div class="sp-surface-card p-4">
+              <div class="text-xs font-bold uppercase tracking-wider text-sp-secondary">รหัสผู้รับยา</div>
+              <div class="text-2xl font-bold text-white mt-1.5 font-mono">${uniquePatientsDispensed} <span class="text-xs font-sans font-normal text-sp-secondary">ราย</span></div>
+              <div class="text-[11px] text-sp-secondary mt-1">จำนวน patient_code ไม่ซ้ำ</div>
+            </div>
+          </div>
+
+          <!-- Charts Row: Top Dispensed SKUs & Pharmacist Workload -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8 sp-surface-card p-5">
+              <h2 class="text-base font-bold text-white mb-1">10 อันดับยาที่มีปริมาณจ่ายออกสูงสุดในช่วงเวลาที่เลือก</h2>
+              <p class="text-xs text-sp-secondary mb-3">นับเฉพาะรายการ type = dispense</p>
+              <div class="h-60">
+                <canvas id="dispTopSkuChart"></canvas>
+              </div>
+            </div>
+            <div class="lg:col-span-4 sp-surface-card p-5">
+              <h2 class="text-base font-bold text-white mb-1">สัดส่วนการจ่ายยาตามเภสัชกร</h2>
+              <p class="text-xs text-sp-secondary mb-3">จำนวนครั้งที่ให้บริการในช่วงที่เลือก</p>
+              <div class="h-60">
+                <canvas id="dispPharmChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Bar -->
+          <div class="sp-surface-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="text" id="dispSearchInput" value="${escapeHtml(state.dispenseSearch)}" placeholder="ค้นหา ID, SKU, Lot, รหัสผู้ป่วย..." class="sp-input rounded-full px-4 py-2 text-xs w-64" />
+              <select id="dispPharmSelect" class="sp-input rounded-full px-3.5 py-2 text-xs font-semibold">
+                <option value="ALL" ${state.dispensePharmFilter === 'ALL' ? 'selected' : ''}>เภสัชกรทุกคน</option>
+                ${pharmacists.map((p) => `<option value="${escapeHtml(p)}" ${state.dispensePharmFilter === p ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+              </select>
+              <select id="dispTypeSelect" class="sp-input rounded-full px-3.5 py-2 text-xs font-semibold">
+                <option value="ALL" ${state.dispenseTypeFilter === 'ALL' ? 'selected' : ''}>ทุกรายการ (${data.filteredDispense.length})</option>
+                <option value="DISPENSE" ${state.dispenseTypeFilter === 'DISPENSE' ? 'selected' : ''}>เฉพาะรายการจ่าย (Dispense: ${dispenseOnly.length})</option>
+                <option value="VOID" ${state.dispenseTypeFilter === 'VOID' ? 'selected' : ''}>เฉพาะรายการยกเลิก (Void: ${voidOnly.length})</option>
+                <option value="RETURN" ${state.dispenseTypeFilter === 'RETURN' ? 'selected' : ''}>เฉพาะรายการรับคืน (Return: ${returnOnly.length})</option>
+                <option value="AUDIT" ${state.dispenseTypeFilter === 'AUDIT' ? 'selected' : ''}>เฉพาะรายการพบจุดตรวจสอบ (Audit)</option>
+              </select>
+            </div>
+            <div class="text-xs font-mono text-sp-secondary">แสดง ${rows.length} รายการ</div>
+          </div>
+
+          <!-- Dispense Log Table -->
+          <div class="rounded-lg bg-sp-dark overflow-hidden border border-[#282828]">
+            <div class="overflow-x-auto max-h-[500px]">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-sp-mid sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-sp-secondary border-b border-[#333]">
+                  <tr>
+                    <th class="py-3 px-4">ID</th>
+                    <th class="py-3 px-4">วัน-เวลา</th>
+                    <th class="py-3 px-4">SKU / ชื่อสามัญ</th>
+                    <th class="py-3 px-4">Lot</th>
+                    <th class="py-3 px-4">ประเภท</th>
+                    <th class="py-3 px-4 text-right">จำนวน</th>
+                    <th class="py-3 px-4">ผู้ป่วย</th>
+                    <th class="py-3 px-4">เภสัชกร</th>
+                    <th class="py-3 px-4">สถานะ & Audit</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#282828] text-xs">
+                  ${rows.map((t) => {
+                    const hasFlag = t.auditFlags.length > 0;
+                    const typeBadge = t.type === 'dispense'
+                      ? '<span class="rounded-[2px] bg-[#1db954]/20 text-sp-green px-1.5 py-0.5 font-mono text-[10px] font-bold">DISPENSE</span>'
+                      : t.type === 'void'
+                      ? '<span class="rounded-[2px] bg-sp-negative/20 text-sp-negative px-1.5 py-0.5 font-mono text-[10px] font-bold">VOID</span>'
+                      : '<span class="rounded-[2px] bg-sp-announcement/20 text-sp-announcement px-1.5 py-0.5 font-mono text-[10px] font-bold">RETURN</span>';
+
+                    return `
+                      <tr class="${hasFlag ? 'bg-sp-negative/5' : ''} hover:bg-sp-cardAlt transition-colors">
+                        <td class="py-2.5 px-4 font-mono font-bold text-white">${escapeHtml(t.dispense_id)}</td>
+                        <td class="py-2.5 px-4 font-mono text-sp-secondary whitespace-nowrap">${escapeHtml(t.dtMinuteStr)}</td>
+                        <td class="py-2.5 px-4">
+                          <span class="font-mono font-bold text-white">${escapeHtml(t.sku)}</span>
+                          <span class="text-sp-secondary ml-1">${escapeHtml(t.generic_name)}</span>
+                        </td>
+                        <td class="py-2.5 px-4 font-mono text-sp-nearWhite">${escapeHtml(t.lot)}</td>
+                        <td class="py-2.5 px-4">${typeBadge}</td>
+                        <td class="py-2.5 px-4 text-right font-mono font-bold ${Number(t.qty) <= 0 ? 'text-sp-negative' : 'text-white'}">${escapeHtml(t.qty)}</td>
+                        <td class="py-2.5 px-4 font-mono text-sp-secondary">${escapeHtml(t.patient_code)}</td>
+                        <td class="py-2.5 px-4 font-mono text-sp-nearWhite">${escapeHtml(t.pharmacist_code)}</td>
+                        <td class="py-2.5 px-4">
+                          ${hasFlag
+                            ? t.auditFlags.map((f) => `<span class="inline-block mr-1 rounded-[2px] bg-sp-negative/20 text-sp-negative px-1.5 py-0.5 font-mono text-[10px] font-bold">${escapeHtml(f)}</span>`).join('')
+                            : '<span class="rounded-[2px] bg-[#1db954]/20 text-sp-green px-1.5 py-0.5 font-mono text-[10px] font-bold">OK</span>'}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Bind Dispense Filters
+      document.getElementById('dispSearchInput').addEventListener('input', (e) => {
+        state.dispenseSearch = e.target.value;
+        renderCurrentTab();
+      });
+      document.getElementById('dispPharmSelect').addEventListener('change', (e) => {
+        state.dispensePharmFilter = e.target.value;
+        renderCurrentTab();
+      });
+      document.getElementById('dispTypeSelect').addEventListener('change', (e) => {
+        state.dispenseTypeFilter = e.target.value;
+        renderCurrentTab();
+      });
+
+      // Top 10 Dispensed Qty Chart
+      const qtyBySku = {};
+      dispenseOnly.forEach((t) => {
+        qtyBySku[t.sku] = (qtyBySku[t.sku] || 0) + Number(t.qty || 0);
+      });
+      const top10 = Object.entries(qtyBySku).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+      charts.dispTopSku = new Chart(document.getElementById('dispTopSkuChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: top10.map((d) => d[0]),
+          datasets: [{
+            label: 'จำนวนหน่วยที่จ่าย',
+            data: top10.map((d) => d[1]),
+            backgroundColor: '#1ed760',
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, grid: { color: '#2a2a2a' } },
+            y: { grid: { display: false } },
+          },
+        },
+      });
+
+      // Pharmacist Chart
+      const pharmCounts = {};
+      dispenseOnly.forEach((t) => {
+        pharmCounts[t.pharmacist_code] = (pharmCounts[t.pharmacist_code] || 0) + 1;
+      });
+      const pLabels = Object.keys(pharmCounts).sort();
+
+      charts.dispPharm = new Chart(document.getElementById('dispPharmChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: pLabels,
+          datasets: [{
+            data: pLabels.map((p) => pharmCounts[p]),
+            backgroundColor: ['#1ed760', '#539df5', '#ffa42b', '#f3727f'],
+            borderWidth: 2,
+            borderColor: '#181818',
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+          },
+        },
+      });
+    }
+
+    // เริ่มต้นดึงข้อมูลจาก /api/data ทันทีที่เปิดหน้าเว็บ
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDashboardData();
+    });
+  </script>
+</body>
+</html>
