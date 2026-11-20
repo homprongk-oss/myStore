@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบขายและจ่ายยา (POS) · เคาน์เตอร์ร้านยา</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* =========================================================
+     ตัวแปรชุดสี: ค่าเริ่มต้นเป็นโทนสีขาว (Light Mode)
+     ========================================================= */
+  :root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --sub: #f5f5f5;
+    --line: #e2e2e2;
+    --hover: #f0f0f0;
+    --border: #cccccc;
+    --text: #121212;
+    --muted: #595959;
+    --placeholder: #767676;
+    --green: #1ed760;
+    --green-text: #0f7b36;
+    --green-bg: rgba(30, 215, 96, 0.14);
+    --orange: #ffa42b;
+    --orange-text: #a14a00;
+    --orange-bg: rgba(255, 164, 43, 0.16);
+    --red: #f3727f;
+    --red-text: #b91c2c;
+    --red-bg: rgba(243, 114, 127, 0.14);
+    --sec-hover-bg: #eaeaea;
+    --sec-hover-border: #9e9e9e;
+    --radius: 12px;
+    --pill: 9999px;
+    --shadow-card: rgba(0, 0, 0, 0.07) 0px 4px 12px;
+    color-scheme: light;
+  }
+
+  /* =========================================================
+     โหมดมืด (Dark Mode: ON) ใช้ชุดสีโทนมืดตามที่กำหนด
+     ========================================================= */
+  :root[data-theme="dark"] {
+    --bg: #121212;
+    --card: #181818;
+    --sub: #202020;
+    --line: #2c2c2c;
+    --hover: #282828;
+    --border: #3e3e3e;
+    --text: #ffffff;
+    --muted: #b3b3b3;
+    --placeholder: #8a8a8a;
+    --green: #1ed760;
+    --green-text: #1ed760;
+    --green-bg: rgba(30, 215, 96, 0.14);
+    --orange: #ffa42b;
+    --orange-text: #ffa42b;
+    --orange-bg: rgba(255, 164, 43, 0.14);
+    --red: #f3727f;
+    --red-text: #f3727f;
+    --red-bg: rgba(243, 114, 127, 0.14);
+    --sec-hover-bg: #2c2c2c;
+    --sec-hover-border: #6a6a6a;
+    --shadow-card: rgba(0, 0, 0, 0.35) 0px 8px 16px;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans Thai', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.4; }
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 18px; }
+  p { margin: 0; }
+  [hidden] { display: none !important; }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 20px 24px 40px; }
+
+  /* ---------- ส่วนหัว ---------- */
+  header.top {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
+  }
+  .top-inner {
+    max-width: 1360px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 16px 24px; flex-wrap: wrap;
+  }
+  .top-left { display: flex; flex-direction: column; gap: 6px; }
+  .top-nav-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sub-note { color: var(--muted); font-size: 16px; }
+  .sim-warning {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--orange-text); background: var(--orange-bg);
+    border: 1px solid var(--orange); border-radius: var(--pill);
+    padding: 2px 14px; font-weight: 600; font-size: 16px;
+  }
+  .top-right {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .asof-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--sub); border: 1px solid var(--line); border-radius: var(--pill);
+    padding: 6px 16px; min-height: 44px; font-size: 16px;
+  }
+  .asof-pill b { font-weight: 700; }
+
+  /* ---------- ปุ่มสลับ Dark Mode (ON / OFF) ---------- */
+  .theme-switch {
+    display: inline-flex; align-items: center; gap: 10px;
+    font: inherit; font-size: 16px; font-weight: 600;
+    color: var(--text); background: var(--sub);
+    border: 1px solid var(--border); border-radius: var(--pill);
+    padding: 6px 16px 6px 10px; min-height: 44px;
+    cursor: pointer; user-select: none;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  .theme-switch:hover { background: var(--sec-hover-bg); border-color: var(--sec-hover-border); }
+  .theme-switch:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+  .switch-track {
+    position: relative; width: 42px; height: 24px;
+    background: var(--border); border-radius: var(--pill);
+    transition: background-color .15s ease; flex-shrink: 0;
+  }
+  .switch-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    transition: transform .15s ease;
+  }
+  .theme-switch[aria-checked="true"] .switch-track { background: var(--green); }
+  .theme-switch[aria-checked="true"] .switch-thumb { transform: translateX(18px); background: #000000; }
+
+  /* ---------- ปุ่มแคปซูลรองรับแท็บเล็ต ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font: inherit; font-size: 16px; font-weight: 700; line-height: 1.6;
+    text-decoration: none;
+    border-radius: var(--pill); padding: 10px 24px; min-height: 48px;
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+    transition: transform .08s ease, background-color .12s ease, filter .12s ease;
+  }
+  .btn:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn.primary {
+    background: var(--green); color: #000000;
+    font-size: 18px; min-height: 54px; padding: 12px 32px;
+  }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn.secondary {
+    background: var(--sub); color: var(--text); border-color: var(--border);
+    min-height: 44px; padding: 6px 18px; font-weight: 600;
+  }
+  .btn.secondary:hover:not(:disabled) { background: var(--sec-hover-bg); border-color: var(--sec-hover-border); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ---------- แถบแจ้งเตือนข้อมูลสำรอง ---------- */
+  .fallback-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    background: var(--orange-bg); border: 2px solid var(--orange);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px;
+  }
+  .fallback-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--orange); color: #000000; font-weight: 700;
+    border-radius: var(--pill); padding: 2px 14px; margin-right: 10px;
+  }
+  .fallback-text { font-weight: 600; color: var(--text); }
+
+  /* ---------- โครงสร้างหลัก 2 คอลัมน์บนแท็บเล็ต ---------- */
+  .pos-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .pos-grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 20px;
+  }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .count-pill {
+    color: var(--muted); font-size: 16px;
+    background: var(--sub); border: 1px solid var(--line);
+    border-radius: var(--pill); padding: 2px 14px;
+  }
+
+  /* ---------- ฟอร์มและช่องกรอก ---------- */
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  label { font-size: 16px; font-weight: 600; color: var(--text); }
+  .req { color: var(--red-text); }
+  input[type="text"], input[type="number"], input[type="search"], select {
+    font: inherit; font-size: 16px; line-height: 1.6; color: var(--text);
+    background: var(--sub); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px; min-height: 48px; width: 100%;
+  }
+  select { cursor: pointer; }
+  input::placeholder { color: var(--placeholder); }
+  input:focus-visible, select:focus-visible {
+    outline: 3px solid var(--text); outline-offset: 2px; border-color: var(--text);
+  }
+
+  /* แถวกรอกจำนวนพร้อมปุ่มเพิ่มด่วนสำหรับแท็บเล็ต */
+  .qty-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+  .qty-row input[type="number"] { flex: 1; min-width: 140px; font-size: 18px; font-weight: 700; }
+  .quick-qty { display: flex; gap: 6px; }
+  .chip-btn {
+    font: inherit; font-size: 16px; font-weight: 600;
+    background: var(--sub); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--pill);
+    padding: 0 14px; min-height: 48px; min-width: 48px; cursor: pointer;
+  }
+  .chip-btn:hover { background: var(--sec-hover-bg); border-color: var(--sec-hover-border); }
+  .chip-btn:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+
+  /* ---------- รายการยาแบบแตะเลือกได้บนแท็บเล็ต ---------- */
+  .drug-list {
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: 360px; overflow-y: auto;
+    padding-right: 4px; margin-top: 8px;
+  }
+  .drug-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: 100%; text-align: left; font: inherit; font-size: 16px; line-height: 1.6;
+    background: var(--sub); color: var(--text);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; min-height: 56px; cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease;
+  }
+  .drug-item:hover { background: var(--hover); border-color: var(--border); }
+  .drug-item[aria-pressed="true"] {
+    border: 2px solid var(--green); background: var(--green-bg);
+  }
+  .drug-item:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+  .drug-main { display: flex; flex-direction: column; }
+  .drug-title { font-weight: 700; }
+  .drug-sub { color: var(--muted); font-size: 16px; }
+  .drug-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .usable-num { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ---------- การ์ดแสดงรายละเอียดยาที่เลือก ---------- */
+  .selected-box {
+    background: var(--sub); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 18px;
+  }
+  .selected-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .selected-sku { font-weight: 700; color: var(--muted); }
+  .selected-name { font-size: 20px; font-weight: 700; }
+  .selected-meta { color: var(--muted); margin-top: 2px; }
+  .stock-summary {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  .stock-metric { display: flex; flex-direction: column; }
+  .stock-metric .lbl { color: var(--muted); font-size: 16px; }
+  .stock-metric .val { font-size: 22px; font-weight: 700; color: var(--green-text); font-variant-numeric: tabular-nums; }
+
+  /* ป้ายต่ำกว่าจุดสั่งซื้อ (มีทั้งสีและข้อความ) */
+  .badge-reorder {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--orange-text); background: var(--orange-bg);
+    border: 1px solid var(--orange); border-radius: var(--pill);
+    padding: 3px 14px; font-size: 16px; font-weight: 700; white-space: nowrap;
+  }
+  .badge-reorder::before {
+    content: "!"; display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--orange); color: #000000; font-weight: 700;
+  }
+
+  /* ---------- กล่องผลลัพธ์การขาย (สำเร็จ / ผิดพลาด) ---------- */
+  .result-box {
+    border-radius: var(--radius); padding: 16px 18px; margin-top: 18px;
+  }
+  .result-box.success {
+    background: var(--green-bg); border: 2px solid var(--green);
+  }
+  .result-box.error {
+    background: var(--red-bg); border: 2px solid var(--red); color: var(--red-text);
+  }
+  .result-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .status-pill-ok {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--green); color: #000000; font-weight: 700;
+    border-radius: var(--pill); padding: 2px 16px; font-size: 16px;
+  }
+  .result-title-err { font-weight: 700; font-size: 18px; color: var(--red-text); }
+  .result-msg-err { font-weight: 600; color: var(--text); margin-top: 4px; }
+  .before-after {
+    font-weight: 700; padding: 8px 12px; margin-bottom: 10px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  }
+  .lot-deduct-list {
+    margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px;
+  }
+
+  /* ---------- ตารางรายการจ่ายล่าสุด 8 แถว ---------- */
+  .log-section { margin-top: 24px; }
+  .table-wrap {
+    overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 16px; line-height: 1.6; }
+  thead th {
+    background: var(--sub); color: var(--muted); font-weight: 700; text-align: left;
+    padding: 12px 14px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  tbody td {
+    padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--hover); }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.code { font-weight: 700; white-space: nowrap; }
+  td.nowrap { white-space: nowrap; }
+  .empty-cell { text-align: center; color: var(--muted); padding: 24px; }
+
+  .type-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: var(--pill); padding: 2px 12px; font-size: 16px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--sub); white-space: nowrap;
+  }
+  .type-dispense { color: var(--green-text); border-color: var(--green); background: var(--green-bg); }
+  .type-return { color: var(--orange-text); border-color: var(--orange); background: var(--orange-bg); }
+  .type-void { color: var(--red-text); border-color: var(--red); background: var(--red-bg); }
+
+  .loading-msg { padding: 32px 0; color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-left">
+      <div class="top-nav-row">
+        <a href="index.html" class="btn secondary">← กลับหน้าหลัก</a>
+        <h1>หน้าขายและจ่ายยา (POS)</h1>
+      </div>
+      <div class="top-nav-row">
+        <span class="sub-note">เคาน์เตอร์ผู้ช่วยเภสัชกร</span>
+        <span class="sim-warning" role="note">ข้อมูลจำลอง ห้ามใส่ชื่อผู้ป่วยจริง</span>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <p class="asof-pill">วันอ้างอิงของระบบ <b id="as-of">กำลังโหลด…</b></p>
+      <button type="button" id="theme-toggle" class="theme-switch" role="switch" aria-checked="false" aria-label="เปิดหรือปิดโหมดมืด (Dark Mode)">
+        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        <span id="theme-label">Dark Mode: OFF</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- แถบสีเหลือง/ส้ม แสดงเมื่ออ่านจากไฟล์ข้อมูลสำรอง -->
+  <div id="fallback-banner" class="fallback-banner" role="alert" hidden>
+    <div>
+      <span class="fallback-badge">ข้อมูลสำรอง</span>
+      <span id="fallback-detail" class="fallback-text">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลจากไฟล์สำรอง และปิดปุ่มขายชั่วคราว</span>
+    </div>
+    <button type="button" id="retry-btn" class="btn secondary">ลองเชื่อมต่อใหม่</button>
+  </div>
+
+  <p id="loading-msg" class="loading-msg" role="status">กำลังโหลดข้อมูลรายการยาและคลัง…</p>
+
+  <div id="pos-app" hidden>
+    <div class="pos-grid">
+      <!-- คอลัมน์ซ้าย: เลือกยาที่มียอดใช้ได้ -->
+      <section class="card" aria-labelledby="sec-drug-title">
+        <div class="card-head">
+          <h2 id="sec-drug-title">1. เลือกยาที่ต้องการจ่าย</h2>
+          <span id="drug-count" class="count-pill">0 รายการ</span>
+        </div>
+
+        <div class="field">
+          <label for="drug-search">ค้นหายา (รหัสยา หรือ ชื่อสามัญ)</label>
+          <input id="drug-search" type="search" placeholder="พิมพ์ค้นหา เช่น AMOX500, IBU400, Paracetamol" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="sku">รายการยาที่พร้อมจ่าย <span class="req">*</span></label>
+          <select id="sku" name="sku">
+            <option value="">— เลือกรายการยา —</option>
+          </select>
+        </div>
+
+        <div id="drug-list" class="drug-list" aria-label="รายการยาแบบแตะเลือก"></div>
+      </section>
+
+      <!-- คอลัมน์ขวา: รายละเอียดยาที่เลือก + ฟอร์มบันทึกการจ่ายยา -->
+      <section class="card" aria-labelledby="sec-sell-title">
+        <div class="card-head">
+          <h2 id="sec-sell-title">2. บันทึกการจ่ายยา</h2>
+        </div>
+
+        <!-- กล่องแสดงรายละเอียดและยอดใช้ได้ของยาที่เลือก -->
+        <div id="selected-box" class="selected-box" hidden>
+          <div class="selected-top">
+            <div>
+              <p id="sel-sku" class="selected-sku"></p>
+              <p id="sel-name" class="selected-name"></p>
+              <p id="sel-meta" class="selected-meta"></p>
+            </div>
+            <span id="sel-reorder-badge" class="badge-reorder" hidden>ต่ำกว่าจุดสั่งซื้อ</span>
+          </div>
+          <div class="stock-summary">
+            <div class="stock-metric">
+              <span class="lbl">ยอดใช้ได้รวม</span>
+              <span id="sel-usable" class="val">0</span>
+            </div>
+            <div class="stock-metric">
+              <span class="lbl">จุดสั่งซื้อ</span>
+              <span id="sel-reorder" class="val" style="color: var(--text); font-size: 18px;">0</span>
+            </div>
+          </div>
+        </div>
+
+        <form id="sell-form" novalidate>
+          <div class="field">
+            <label for="qty">จำนวนที่จ่าย <span class="req">*</span></label>
+            <div class="qty-row">
+              <input id="qty" name="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="ระบุจำนวนเต็มตั้งแต่ 1 ขึ้นไป" required>
+              <div class="quick-qty" aria-label="ปุ่มเพิ่มจำนวนด่วน">
+                <button type="button" class="chip-btn" data-add-qty="10">+10</button>
+                <button type="button" class="chip-btn" data-add-qty="30">+30</button>
+                <button type="button" class="chip-btn" data-add-qty="100">+100</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="patient_code">รหัสผู้ป่วย <span class="req">*</span></label>
+            <input id="patient_code" name="patient_code" type="text" placeholder="เช่น P0101 (ห้ามใส่ชื่อจริง)" autocomplete="off" spellcheck="false" required>
+          </div>
+
+          <div class="field">
+            <label for="pharmacist_code">รหัสเภสัชกร <span class="req">*</span></label>
+            <input id="pharmacist_code" name="pharmacist_code" type="text" placeholder="เช่น RX-01" autocomplete="off" spellcheck="false" required>
+          </div>
+
+          <button type="submit" id="sell-btn" class="btn primary" style="width: 100%;">บันทึกการจ่ายยา</button>
+        </form>
+
+        <!-- กล่องแสดงผลการบันทึกการจ่ายยา (สำเร็จหรือข้อผิดพลาด) -->
+        <div id="result-box" class="result-box" hidden></div>
+      </section>
+    </div>
+
+    <!-- ส่วนล่าง: รายการจ่ายล่าสุด 8 แถว -->
+    <section class="card log-section" aria-labelledby="sec-log-title">
+      <div class="card-head">
+        <h2 id="sec-log-title">รายการจ่ายล่าสุด (8 รายการล่าสุด)</h2>
+        <span id="log-total-pill" class="count-pill">ทั้งหมด 0 รายการ</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>เลขที่ใบจ่าย</th>
+              <th>วันเวลา</th>
+              <th>รหัสยา</th>
+              <th>ชื่อยา</th>
+              <th>เลขล็อต</th>
+              <th class="num">จำนวน</th>
+              <th>รหัสผู้ป่วย</th>
+              <th>รหัสเภสัชกร</th>
+              <th>ประเภท</th>
+            </tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+/* =========================================================================
+   1) ระบบสลับโหมดมืด (Dark Mode ON / OFF) โดยค่าเริ่มต้นเป็นสีขาว (Light Mode)
+   ========================================================================= */
+(function initThemeSwitch() {
+  const btn = document.getElementById('theme-toggle');
+  const label = document.getElementById('theme-label');
+  if (!btn || !label) return;
+  let isDark = false;
+  btn.addEventListener('click', () => {
+    isDark = !isDark;
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      btn.setAttribute('aria-checked', 'true');
+      label.textContent = 'Dark Mode: ON';
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      btn.setAttribute('aria-checked', 'false');
+      label.textContent = 'Dark Mode: OFF';
+    }
+  });
+})();
+
+/* =========================================================================
+   2) สถานะหลักของหน้าขายยา (ห้ามใช้ Date object โดยเด็ดขาด)
+   ========================================================================= */
+const TYPE_LABELS = { dispense: 'จ่าย', return: 'คืน', void: 'ยกเลิก' };
+
+const state = {
+  asOf: '',              // วันอ้างอิง YYYY-MM-DD จาก stock.meta.as_of
+  isFallback: false,     // true เมื่อใช้ข้อมูลสำรองจากไฟล์ JSON
+  isSubmitting: false,   // true ระหว่างรอคำตอบจาก POST /api/dispense เพื่อกันกดซ้ำ
+  availableDrugs: [],    // รายการยาที่ active และมียอดใช้ได้ > 0
+  drugBySku: new Map(),  // แผนที่ค้นหาข้อมูลยาจาก sku
+  dispenseLog: []        // ประวัติการจ่ายทั้งหมด
+};
+
+const $ = (sel) => document.querySelector(sel);
+
+/* ตัวช่วยสร้าง DOM Element อย่างปลอดภัย (ใช้ textContent เท่านั้น ห้ามใช้ การแทรก HTML ดิบ) */
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  if (props) {
+    for (const [k, v] of Object.entries(props)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') node.className = v;
+      else if (k === 'text') node.textContent = String(v);
+      else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v === true ? '' : String(v));
+    }
+  }
+  for (const child of children.flat()) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : String(child));
+  }
+  return node;
+}
+
+function fmtInt(n) {
+  const num = Number(n);
+  return Number.isFinite(num) ? Math.round(num).toLocaleString('en-US') : '0';
+}
+
+function isIsoDate(val) {
+  return typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val.trim());
+}
+
+function datePart(val) {
+  return isIsoDate(val) ? val.trim().slice(0, 10) : '';
+}
+
+/* =========================================================================
+   3) ขั้นตอนการเรียก API ดึงข้อมูลหลัก GET /api/data (กำหนดหมดเวลา 8 วินาที)
+      หากไม่สำเร็จ ให้สลับไปอ่านไฟล์ข้อมูลสำรอง drugs.json, stock.json, dispense-log.json
+   ========================================================================= */
+function isValidPayload(data) {
+  if (!data || typeof data !== 'object') return false;
+  if (!data.drugs || !Array.isArray(data.drugs.items)) return false;
+  if (!data.stock || !Array.isArray(data.stock.items)) return false;
+  if (!data.stock.meta || !isIsoDate(data.stock.meta.as_of)) return false;
+  if (!data.dispense_log || !Array.isArray(data.dispense_log.items)) return false;
+  return true;
+}
+
+async function fetchPrimaryData() {
+  // สร้าง AbortController เพื่อยกเลิกคำขออัตโนมัติหากเกิน 8 วินาที (8,000 มิลลิวินาที)
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch('/api/data', {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
+    });
+    // ตรวจสอบสถานะ HTTP ต้องเป็น 200 เท่านั้น
+    if (response.status !== 200) {
+      throw new Error('HTTP ' + response.status);
+    }
+    const json = await response.json();
+    // ตรวจสอบความครบถ้วนของโครงสร้างข้อมูล {drugs:{items}, stock:{meta,items}, dispense_log:{items}}
+    if (!isValidPayload(json)) {
+      throw new Error('โครงสร้างข้อมูลจาก /api/data ไม่ครบถ้วน');
+    }
+    return json;
+  } finally {
+    clearTimeout(timerId);
+  }
+}
+
+async function fetchFallbackFiles() {
+  // ขั้นตอนสำรอง: อ่านไฟล์ JSON ทั้ง 3 ไฟล์พร้อมกันเมื่อ /api/data ล้มเหลว
+  const [rDrugs, rStock, rLog] = await Promise.all([
+    fetch('drugs.json', { cache: 'no-store' }),
+    fetch('stock.json', { cache: 'no-store' }),
+    fetch('dispense-log.json', { cache: 'no-store' })
+  ]);
+  if (!rDrugs.ok || !rStock.ok || !rLog.ok) {
+    throw new Error('ไม่สามารถอ่านไฟล์ข้อมูลสำรองได้');
+  }
+  const [drugsJson, stockJson, logJson] = await Promise.all([
+    rDrugs.json(),
+    rStock.json(),
+    rLog.json()
+  ]);
+  const asOf = datePart(stockJson && stockJson.meta && stockJson.meta.as_of) ||
+               datePart(drugsJson && drugsJson.meta && drugsJson.meta.as_of);
+  return {
+    drugs: { items: Array.isArray(drugsJson) ? drugsJson : (drugsJson.items || []) },
+    stock: { meta: { as_of: asOf }, items: Array.isArray(stockJson) ? stockJson : (stockJson.items || []) },
+    dispense_log: { items: Array.isArray(logJson) ? logJson : (logJson.items || []) }
+  };
+}
+
+async function loadData() {
+  let payload = null;
+  let fallbackUsed = false;
+
+  try {
+    // ขั้นตอนที่ 1: เรียก GET /api/data จากเซิร์ฟเวอร์
+    payload = await fetchPrimaryData();
+  } catch (err) {
+    // ขั้นตอนที่ 2: หากหมดเวลา 8 วินาที / ตอบไม่ใช่ 200 / โครงสร้างไม่ครบ ให้อ่านไฟล์สำรองแทน
+    fallbackUsed = true;
+    try {
+      payload = await fetchFallbackFiles();
+    } catch (fallbackErr) {
+      $('#loading-msg').textContent = 'โหลดข้อมูลไม่สำเร็จทั้งจากเซิร์ฟเวอร์และไฟล์สำรอง กรุณากดรีเฟรชหน้าจอ';
+      return;
+    }
+  }
+
+  processPayload(payload, fallbackUsed);
+}
+
+/* =========================================================================
+   4) ประมวลผลรายการยาที่พร้อมจ่ายและคำนวณยอดใช้ได้ต่อ SKU
+   ========================================================================= */
+function processPayload(payload, fallbackUsed) {
+  state.isFallback = fallbackUsed;
+  state.asOf = datePart(payload.stock && payload.stock.meta && payload.stock.meta.as_of);
+
+  // ตรวจสอบรายการยาที่ถูกปิดใช้งาน (is_active = false) จาก catalog (ถ้ามี)
+  const inactiveSkus = new Set();
+  if (payload.catalog && Array.isArray(payload.catalog.items)) {
+    for (const c of payload.catalog.items) {
+      if (c && (c.is_active === false || c.is_active === 'false' || c.is_active === 0 || c.is_active === 'f')) {
+        inactiveSkus.add(String(c.sku));
+      }
+    }
+  }
+  for (const d of payload.drugs.items) {
+    if (d && (d.is_active === false || d.is_active === 'false' || d.is_active === 0 || d.is_active === 'f')) {
+      inactiveSkus.add(String(d.sku));
+    }
+  }
+
+  // รวมยอดใช้ได้ต่อ SKU เฉพาะล็อตที่:
+  // 1) status === 'active' (ถ้าไฟล์สำรองไม่มีฟิลด์ status ให้ถือว่าเป็น 'active')
+  // 2) expiry >= as_of (เปรียบเทียบรูปแบบ YYYY-MM-DD โดยตรง ไม่ใช้ Date object)
+  // 3) qty_on_hand > 0
+  const usableBySku = new Map();
+  for (const s of payload.stock.items) {
+    if (!s || !s.sku) continue;
+    const sku = String(s.sku);
+    const status = (s.status === undefined || s.status === null || String(s.status).trim() === '')
+      ? 'active'
+      : String(s.status).trim();
+    const exp = datePart(s.expiry);
+    const qty = Number(s.qty_on_hand);
+
+    if (status === 'active' && exp && state.asOf && exp >= state.asOf && Number.isFinite(qty) && qty > 0) {
+      usableBySku.set(sku, (usableBySku.get(sku) || 0) + qty);
+    }
+  }
+
+  // สร้างแผนที่ยาทั้งหมดและกรองเฉพาะยาที่เปิดใช้งานและมียอดใช้ได้ > 0
+  state.drugBySku = new Map();
+  const available = [];
+  for (const d of payload.drugs.items) {
+    if (!d || !d.sku) continue;
+    const sku = String(d.sku);
+    const usableQty = usableBySku.get(sku) || 0;
+    const enriched = Object.assign({}, d, { sku: sku, usable_qty: usableQty });
+    state.drugBySku.set(sku, enriched);
+
+    if (!inactiveSkus.has(sku) && usableQty > 0) {
+      available.push(enriched);
+    }
+  }
+
+  available.sort((a, b) => a.sku.localeCompare(b.sku, 'en', { numeric: true }));
+  state.availableDrugs = available;
+  state.dispenseLog = Array.isArray(payload.dispense_log.items) ? payload.dispense_log.items : [];
+
+  renderUI();
+}
+
+/* =========================================================================
+   5) อัปเดตหน้าจอทั้งหมด (ส่วนหัว, ตัวเลือกยา, ปุ่มขาย, รายการจ่ายล่าสุด 8 แถว)
+   ========================================================================= */
+function renderUI() {
+  $('#as-of').textContent = state.asOf || 'ไม่ระบุ';
+  $('#fallback-banner').hidden = !state.isFallback;
+  updateSellButtonState();
+
+  const previousSku = $('#sku').value;
+  renderDrugSelector(previousSku);
+  updateSelectedDrugBox();
+  renderRecentLog();
+
+  $('#loading-msg').hidden = true;
+  $('#pos-app').hidden = false;
+}
+
+function updateSellButtonState() {
+  const btn = $('#sell-btn');
+  if (state.isFallback) {
+    btn.disabled = true;
+    btn.textContent = 'ปิดการขายชั่วคราว (ข้อมูลสำรอง)';
+  } else if (state.isSubmitting) {
+    btn.disabled = true;
+    btn.textContent = 'กำลังบันทึกการจ่ายยา…';
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'บันทึกการจ่ายยา';
+  }
+}
+
+function renderDrugSelector(keepSku) {
+  const q = $('#drug-search').value.trim().toLowerCase();
+  const filtered = state.availableDrugs.filter((d) => {
+    if (!q) return true;
+    return d.sku.toLowerCase().includes(q) ||
+           String(d.generic_name || '').toLowerCase().includes(q) ||
+           String(d.category || '').toLowerCase().includes(q);
+  });
+
+  $('#drug-count').textContent = filtered.length + ' รายการพร้อมจ่าย';
+
+  // อัปเดต <select id="sku">
+  const select = $('#sku');
+  const options = [el('option', { value: '', text: '— เลือกรายการยา (' + filtered.length + ' รายการ) —' })];
+  for (const d of filtered) {
+    const belowReorder = Number(d.usable_qty) < Number(d.reorder_level);
+    const labelText = d.sku + ' — ' + d.generic_name + ' ' + d.strength +
+      ' (คงเหลือ ' + fmtInt(d.usable_qty) + ' ' + (d.unit || 'หน่วย') + ')' +
+      (belowReorder ? ' [ต่ำกว่าจุดสั่งซื้อ]' : '');
+    options.push(el('option', { value: d.sku, text: labelText }));
+  }
+  select.replaceChildren(...options);
+
+  if (keepSku && filtered.some((d) => d.sku === keepSku)) {
+    select.value = keepSku;
+  } else if (keepSku && state.availableDrugs.some((d) => d.sku === keepSku) && !q) {
+    select.value = keepSku;
+  }
+
+  // อัปเดตรายการยาแบบแตะเลือกสำหรับแท็บเล็ต
+  const listEl = $('#drug-list');
+  if (!filtered.length) {
+    listEl.replaceChildren(el('p', { class: 'empty-cell', text: 'ไม่พบรายการยาที่พร้อมจ่ายตามคำค้นหา' }));
+    return;
+  }
+
+  const cards = filtered.map((d) => {
+    const belowReorder = Number(d.usable_qty) < Number(d.reorder_level);
+    const isSelected = select.value === d.sku;
+    const rightCol = [
+      el('span', {
+        class: 'usable-num',
+        text: 'ใช้ได้ ' + fmtInt(d.usable_qty) + ' ' + (d.unit || '')
+      })
+    ];
+    if (belowReorder) {
+      rightCol.push(el('span', { class: 'badge-reorder', text: 'ต่ำกว่าจุดสั่งซื้อ' }));
+    }
+
+    return el('button', {
+      type: 'button',
+      class: 'drug-item',
+      'aria-pressed': isSelected ? 'true' : 'false',
+      onclick: () => {
+        select.value = d.sku;
+        updateSelectedDrugBox();
+        highlightSelectedCard();
+      }
+    },
+      el('div', { class: 'drug-main' },
+        el('span', { class: 'drug-title', text: d.sku + ' · ' + d.generic_name + ' ' + d.strength }),
+        el('span', { class: 'drug-sub', text: (d.dosage_form || '') + (d.category ? ' · ' + d.category : '') })
+      ),
+      el('div', { class: 'drug-right' }, ...rightCol)
+    );
+  });
+
+  listEl.replaceChildren(...cards);
+}
+
+function highlightSelectedCard() {
+  const currentSku = $('#sku').value;
+  $('#drug-list').querySelectorAll('.drug-item').forEach((btn, idx) => {
+    const q = $('#drug-search').value.trim().toLowerCase();
+    const filtered = state.availableDrugs.filter((d) => !q ||
+      d.sku.toLowerCase().includes(q) ||
+      String(d.generic_name || '').toLowerCase().includes(q) ||
+      String(d.category || '').toLowerCase().includes(q));
+    const item = filtered[idx];
+    btn.setAttribute('aria-pressed', item && item.sku === currentSku ? 'true' : 'false');
+  });
+}
+
+function updateSelectedDrugBox() {
+  const sku = $('#sku').value;
+  const box = $('#selected-box');
+  if (!sku || !state.drugBySku.has(sku)) {
+    box.hidden = true;
+    return;
+  }
+  const d = state.drugBySku.get(sku);
+  const belowReorder = Number(d.usable_qty) < Number(d.reorder_level);
+
+  $('#sel-sku').textContent = 'รหัสยา: ' + d.sku;
+  $('#sel-name').textContent = d.generic_name + ' ' + d.strength;
+  $('#sel-meta').textContent = [d.dosage_form, d.category, d.atc_code ? 'ATC: ' + d.atc_code : ''].filter(Boolean).join(' · ');
+  $('#sel-usable').textContent = fmtInt(d.usable_qty) + ' ' + (d.unit || 'หน่วย');
+  $('#sel-reorder').textContent = fmtInt(d.reorder_level) + ' ' + (d.unit || 'หน่วย');
+  $('#sel-reorder-badge').hidden = !belowReorder;
+  box.hidden = false;
+}
+
+/* =========================================================================
+   6) ตารางรายการจ่ายล่าสุด 8 แถว (เรียงจากล่าสุดไปเก่าสุดโดยไม่ใช้ Date object)
+   ========================================================================= */
+function renderRecentLog() {
+  const total = state.dispenseLog.length;
+  $('#log-total-pill').textContent = 'ทั้งหมด ' + fmtInt(total) + ' รายการ';
+
+  // เรียงตามข้อความวันเวลา (ISO) จากมากไปน้อย และใช้เลขที่ใบจ่ายเป็นตัวตัดสินรอง
+  const latest8 = [...state.dispenseLog]
+    .sort((a, b) => {
+      const cmp = String(b.datetime || '').localeCompare(String(a.datetime || ''));
+      return cmp !== 0 ? cmp : String(b.dispense_id || '').localeCompare(String(a.dispense_id || ''), 'en', { numeric: true });
+    })
+    .slice(0, 8);
+
+  const tbody = $('#log-body');
+  if (!latest8.length) {
+    tbody.replaceChildren(
+      el('tr', null, el('td', { colspan: '9', class: 'empty-cell', text: 'ยังไม่มีรายการจ่ายยา' }))
+    );
+    return;
+  }
+
+  const rows = latest8.map((r) => {
+    const drug = state.drugBySku.get(String(r.sku || ''));
+    const drugName = drug ? (drug.generic_name + ' ' + drug.strength) : '—';
+    const rawType = String(r.type || 'dispense');
+    const typeText = TYPE_LABELS[rawType] || rawType;
+    const typeClass = 'type-badge type-' + (TYPE_LABELS[rawType] ? rawType : 'dispense');
+    const dtText = String(r.datetime || '—').replace('T', ' ').slice(0, 19);
+
+    return el('tr', null,
+      el('td', { class: 'code', text: r.dispense_id || '—' }),
+      el('td', { class: 'nowrap', text: dtText }),
+      el('td', { class: 'code', text: r.sku || '—' }),
+      el('td', { text: drugName }),
+      el('td', { class: 'nowrap', text: r.lot || '—' }),
+      el('td', { class: 'num', text: fmtInt(r.qty) }),
+      el('td', { class: 'nowrap', text: r.patient_code || '—' }),
+      el('td', { class: 'nowrap', text: r.pharmacist_code || '—' }),
+      el('td', null, el('span', { class: typeClass, text: typeText }))
+    );
+  });
+
+  tbody.replaceChildren(...rows);
+}
+
+/* =========================================================================
+   7) แสดงกล่องผลลัพธ์การขาย (สำเร็จ / ไม่สำเร็จ)
+   ========================================================================= */
+function showSuccessResult(sku, resp) {
+  const box = $('#result-box');
+  box.className = 'result-box success';
+  const drug = state.drugBySku.get(sku);
+  const unit = (drug && drug.unit) ? drug.unit : 'หน่วย';
+  const drugTitle = drug ? (sku + ' — ' + drug.generic_name + ' ' + drug.strength) : sku;
+
+  const lines = Array.isArray(resp.lines) ? resp.lines : [];
+  const listItems = lines.map((line) =>
+    el('li', {
+      text: 'ใบจ่าย ' + (line.dispense_id || '—') +
+            ' · ตัดล็อต ' + (line.lot || '—') +
+            ' จำนวน ' + fmtInt(line.qty) + ' ' + unit
+    })
+  );
+
+  box.replaceChildren(
+    el('div', { class: 'result-head' },
+      el('span', { class: 'status-pill-ok', text: 'จ่ายแล้ว' }),
+      el('strong', { text: drugTitle })
+    ),
+    el('p', {
+      class: 'before-after',
+      text: 'ยอดใช้ได้ก่อนจ่าย: ' + fmtInt(resp.usable_before) + ' ' + unit +
+            ' → ยอดใช้ได้หลังจ่าย: ' + fmtInt(resp.usable_after) + ' ' + unit
+    }),
+    el('ul', { class: 'lot-deduct-list' }, ...listItems)
+  );
+  box.hidden = false;
+}
+
+function showErrorResult(message) {
+  const box = $('#result-box');
+  box.className = 'result-box error';
+  box.replaceChildren(
+    el('p', { class: 'result-title-err', text: 'บันทึกการจ่ายยาไม่สำเร็จ' }),
+    el('p', { class: 'result-msg-err', text: String(message || 'เกิดข้อผิดพลาดในการบันทึก') })
+  );
+  box.hidden = false;
+}
+
+/* =========================================================================
+   8) ขั้นตอนการส่งข้อมูลขายยา POST /api/dispense
+      - ตรวจเฉพาะว่าเป็นจำนวนเต็ม >= 1 และรหัสผู้ป่วย/เภสัชกรไม่ว่าง (ไม่จำกัดยอดเกินหน้าเว็บ)
+      - ปิดปุ่มทันทีที่กดเพื่อป้องกันการกดซ้ำจนกว่าจะได้คำตอบ
+      - เมื่อสำเร็จ: แสดงผลจากคำตอบเซิร์ฟเวอร์ ล้างช่องรหัสผู้ป่วย และดึง /api/data ใหม่ทันที
+   ========================================================================= */
+$('#sell-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (state.isFallback || state.isSubmitting) return;
+
+  const sku = $('#sku').value.trim();
+  const qtyRaw = $('#qty').value.trim();
+  const patientCode = $('#patient_code').value.trim();
+  const pharmacistCode = $('#pharmacist_code').value.trim();
+
+  // ตรวจสอบความถูกต้องเบื้องต้น (ไม่จำกัดจำนวนเกินยอดใช้ได้ที่หน้าเว็บ ให้เซิร์ฟเวอร์เป็นผู้ตรวจสอบ)
+  if (!sku) {
+    showErrorResult('กรุณาเลือกรายการยาก่อนบันทึก');
+    $('#sku').focus();
+    return;
+  }
+  if (!/^\d+$/.test(qtyRaw) || Number(qtyRaw) < 1) {
+    showErrorResult('จำนวนต้องเป็นจำนวนเต็มตั้งแต่ 1 ขึ้นไป');
+    $('#qty').focus();
+    return;
+  }
+  if (!patientCode) {
+    showErrorResult('กรุณากรอกรหัสผู้ป่วย');
+    $('#patient_code').focus();
+    return;
+  }
+  if (!pharmacistCode) {
+    showErrorResult('กรุณากรอกรหัสเภสัชกร');
+    $('#pharmacist_code').focus();
+    return;
+  }
+
+  // ปิดปุ่มขายทันทีจนกว่าจะได้คำตอบจากเซิร์ฟเวอร์ (กันกดซ้ำ)
+  state.isSubmitting = true;
+  updateSellButtonState();
+
+  let response, data;
+  try {
+    // เรียก POST /api/dispense ส่ง JSON {sku, qty, patient_code, pharmacist_code}
+    response = await fetch('/api/dispense', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sku: sku,
+        qty: Number(qtyRaw),
+        patient_code: patientCode,
+        pharmacist_code: pharmacistCode
+      })
+    });
+    data = await response.json().catch(() => null);
+  } catch (err) {
+    state.isSubmitting = false;
+    updateSellButtonState();
+    showErrorResult('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง');
+    return;
+  }
+
+  state.isSubmitting = false;
+  updateSellButtonState();
+
+  if (response.ok && data && data.ok === true) {
+    // สำเร็จ: แสดงผล "จ่ายแล้ว" ล็อตที่ตัด และยอดก่อน-หลังตามที่ /api/dispense ตอบ
+    showSuccessResult(sku, data);
+    // ล้างช่องรหัสผู้ป่วย (และจำนวน) พร้อมดึง /api/data ใหม่โดยไม่ต้องรีเฟรชหน้า
+    $('#patient_code').value = '';
+    $('#qty').value = '';
+    await loadData();
+  } else {
+    // ไม่สำเร็จ: แสดงข้อความภาษาไทยจาก message ในกล่องสีแดง และไม่ล้างฟอร์ม
+    const errMsg = (data && data.message) ? data.message : ('บันทึกไม่สำเร็จ (HTTP ' + response.status + ')');
+    showErrorResult(errMsg);
+  }
+});
+
+/* =========================================================================
+   9) ผูกเหตุการณ์ปุ่มและช่องค้นหา
+   ========================================================================= */
+$('#drug-search').addEventListener('input', () => {
+  renderDrugSelector($('#sku').value);
+  updateSelectedDrugBox();
+});
+
+$('#sku').addEventListener('change', () => {
+  updateSelectedDrugBox();
+  highlightSelectedCard();
+});
+
+document.querySelectorAll('[data-add-qty]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const add = Number(btn.getAttribute('data-add-qty')) || 0;
+    const cur = Number($('#qty').value);
+    const next = (Number.isFinite(cur) && cur > 0 ? Math.floor(cur) : 0) + add;
+    $('#qty').value = String(next);
+    $('#qty').focus();
+  });
+});
+
+$('#retry-btn').addEventListener('click', () => {
+  loadData();
+});
+
+/* เริ่มโหลดข้อมูลเมื่อเปิดหน้า */
+loadData();
+</script>
+</body>
+</html>
